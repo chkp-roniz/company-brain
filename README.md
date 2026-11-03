@@ -43,7 +43,7 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 | [6] | Retrieval projections | Derived vector, graph, text, and relational indexes; rebuilt and invalidated from [5] |
 | [7] | Retrieval and context composer | Deterministic filters, ranking, budgeted selection, L0/L1 composition, selection logging |
 | [8] | Output adapters | Harness hooks, MCP, APIs, UI; deliver in-tool; collect outcome signals |
-| [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback; managed integrity and authenticity controls; governs which maintenance action classes may run automatically and who owns each; legal holds take precedence over maintenance |
+| [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback; managed integrity and authenticity controls that stay verifiable across key rotation, revocation, and compromise; governs which maintenance action classes may run automatically and who owns each; legal holds take precedence over maintenance |
 | [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along decision lineage by evidence of influence, not mere exposure, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline |
 
 ## The ten rules that never bend

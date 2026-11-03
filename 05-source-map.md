@@ -133,7 +133,7 @@ Reverse index: requirement area → sources that shaped it.
 | Output — delivery | [REQ-OUT-01…18](01-requirements.md#req-out-01) | `[6]` `[7]` `[8]` | [02](02-functionality.md) [§3.4](02-functionality.md#34-output-context-delivery) | A06, A07, A15, A16, I01, I07, I08, I09, I13, F04, P07 |
 | Scope and promotion | [REQ-SC-01…06](01-requirements.md#req-sc-01) | `[4]` | [02](02-functionality.md) [§4](02-functionality.md#4-scope-and-promotion) | F02, F03, F04, I03, P02 |
 | Governance | [REQ-GOV-01…12](01-requirements.md#req-gov-01) | `[9]` | [02](02-functionality.md) [§3.5](02-functionality.md#35-governance-the-control-plane) | A02, A05, A07, I14 |
-| Security | [REQ-SEC-01…18](01-requirements.md#req-sec-01) | `[9]`, all | [02](02-functionality.md) [§10](02-functionality.md#10-behaviors-that-hold-everywhere) | I01 (SEC-16…17); otherwise no external research source ([§7](02-functionality.md#7-agentic-flows)) |
+| Security | [REQ-SEC-01…19](01-requirements.md#req-sec-01) | `[9]`, all | [02](02-functionality.md) [§10](02-functionality.md#10-behaviors-that-hold-everywhere) | I01 (SEC-16…17); otherwise no external research source ([§7](02-functionality.md#7-agentic-flows)) |
 | Non-functional | [REQ-NFR-01…11](01-requirements.md#req-nfr-01) | all | [02](02-functionality.md) [§8](02-functionality.md#8-management-dashboard) | A02, A08, A11, A12, A14, I04 |
 | Measurement | [04](04-kpi-and-measurements.md) (fulfils [REQ-NFR-07](01-requirements.md#req-nfr-07), [NFR-10](01-requirements.md#req-nfr-10), [NFR-11](01-requirements.md#req-nfr-11), [EV-12](01-requirements.md#req-ev-12)) | `[10]` | [02](02-functionality.md) [§8](02-functionality.md#8-management-dashboard) | A09, A10, A11, A12, A13, A14 |
 
@@ -160,6 +160,7 @@ Reverse index: requirement area → sources that shaped it.
 | [AS-17](01-requirements.md#as-17) | Retrieval-policy shadow | A11, A13, A14 (comparison basis and conditions); side-effect isolation is a design addition |
 | [AS-18](01-requirements.md#as-18) | Crash mid-task | P07 (checkpoint content); crash safety is a design addition |
 | [AS-19](01-requirements.md#as-19) | Concurrent maintenance under legal hold | A16 (redirects and dependents); concurrency and precedence are design additions |
+| [AS-20](01-requirements.md#as-20) | Key events over time | Design addition (enterprise key management); I01 for signed provenance only |
 | [OD-02](01-requirements.md#od-02) | Minimum experience-unit schema | A03 |
 | [OD-03](01-requirements.md#od-03) | Admission thresholds | A17 |
 | [OD-08](01-requirements.md#od-08) | Skill compilation and promotion | A05, I01 |
@@ -185,7 +186,7 @@ Quick lookup for the design ideas that recur across the documents.
 | Session continuity and compaction | [REQ-ME-19…25](01-requirements.md#req-me-19); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity) | P07 |
 | Shadow evaluation and risk-calibrated promotion | [REQ-EV-13…19](01-requirements.md#req-ev-13), [AS-17](01-requirements.md#as-17), [REQ-ME-12](01-requirements.md#req-me-12); [03](03-architecture.md) [§11.3](03-architecture.md#113-shadow-evaluation-and-promotion); [04](04-kpi-and-measurements.md) [§4.5](04-kpi-and-measurements.md#45-shadow-evaluation) | I01, A09, A11, A13, A14 |
 | Decision lineage and verified outcomes | [REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14); [03](03-architecture.md) [§2.1](03-architecture.md#21-decision-lineage) | I01 |
-| Integrity is not truth (signed provenance) | [REQ-SEC-16…18](01-requirements.md#req-sec-16); [03](03-architecture.md) [§10.1](03-architecture.md#101-record-integrity-and-attestation) | I01 |
+| Integrity is not truth (signed provenance) | [REQ-SEC-16…17](01-requirements.md#req-sec-16); [03](03-architecture.md) [§10.1](03-architecture.md#101-record-integrity-and-attestation) | I01 |
 | Net value and no-memory baseline | [REQ-NFR-10](01-requirements.md#req-nfr-10), [REQ-EV-12](01-requirements.md#req-ev-12); [04](04-kpi-and-measurements.md) [§3.7](04-kpi-and-measurements.md#37-net-value), [§4.2–4.3](04-kpi-and-measurements.md#42-net-value-ab-or-paired-protocol) | A12, A13, A11 |
 | Minimum sufficient context | [REQ-OUT-01](01-requirements.md#req-out-01) | A15, A06 |
 | Proactive delivery before reasoning | [REQ-OUT-04…05](01-requirements.md#req-out-04) | I13 |
@@ -213,7 +214,7 @@ These items come from the design work itself, not from a cited resource. They ar
 | Agentic flows F1–F8 ([02](02-functionality.md) [§7](02-functionality.md#7-agentic-flows), [03](03-architecture.md) [§13](03-architecture.md#13-agentic-flows-catalog)) | Composition of existing components |
 | Delivery phases ([03](03-architecture.md) [§15](03-architecture.md#15-proposed-delivery-phases--proposal)) and phase gates ([04](04-kpi-and-measurements.md) [§5](04-kpi-and-measurements.md#5-phase-gates)) | Planning proposal |
 | [REQ-NFR-09](01-requirements.md#req-nfr-09), scale assumption | Planning input to be set by each adopter |
-| [REQ-SEC-18](01-requirements.md#req-sec-18), organization-managed keys and trust roots | From the enterprise security baseline; I01 shows signed provenance but no key-management standard |
+| [REQ-SEC-18…19](01-requirements.md#req-sec-18), organization-managed keys and trust roots; key-event semantics (rotation, expiry, revocation, compromise), trusted time, historical trust chain, algorithm migration | From the enterprise security baseline; I01 shows signed provenance but no key-management or long-term validity standard |
 | Grounding ceiling, per-request grounding decision, and permitted-use labels ([REQ-ME-15…16](01-requirements.md#req-me-15), [REQ-OUT-18](01-requirements.md#req-out-18), [AS-16](01-requirements.md#as-16)) | Extends I01's retention, retrieval, and grounding separation; the two-level model and the labels are ours |
 | Exposure, influence, and causal-evidence levels in attribution ([REQ-EV-06](01-requirements.md#req-ev-06)) and the lineage edge vocabulary ([REQ-ME-05](01-requirements.md#req-me-05)) | Extends A10's attribution discipline and I01's lineage; the three levels and edge names are ours |
 | [REQ-EV-18](01-requirements.md#req-ev-18), shadow side-effect isolation through read-only tool façades | Operational safety need; no research source |

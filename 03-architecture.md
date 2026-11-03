@@ -565,37 +565,52 @@ Precedence is deterministic and environment-independent: a local setting, a user
 
 ### 10.1 Record integrity and attestation
 
-High-impact records are tamper-evident and attributable ([REQ-SEC-16…18](01-requirements.md#req-sec-16)). This is a control in [9] applied at [2], [4], [5], [7], and [10]; it is not a new component.
+High-impact records are tamper-evident, attributable, and verifiable for as long as they are kept ([REQ-SEC-16…19](01-requirements.md#req-sec-16)). This is a control in [9] applied at [2], [4], [5], [7], and [10]; it is not a new component.
 
 ```
    WRITE   admission [4] . outcome verifier [10] . policy owner
-     record version --> sign with managed identity --> attestation
-                        (key from org trust root [9])       |
+     record version --> canonical form --> digest --> sign with managed identity
+                        (key from org trust root [9]) + trusted timestamp
+                                                             |
+                                                        attestation
+                                                             |
                                                              v
    STORE   [2] / [5]: record + attestation + verification status
                                                              |
    USE     read path [7] . promotion [4] / [10]              v
-     verify against trust root --+-- pass --> continue to grounding and
-                                 |            promotion checks (truth is
-                                 |            decided there, not here)
-                                 |
-                                 +-- fail / revoked / unknown key -->
-                                     quarantine: no grounding, no
-                                     promotion; audit; notify owner
+     verify against trust chain  --+-- pass --> continue to grounding and
+     valid at signing time         |            promotion checks (truth is
+                                   |            decided there, not here)
+                                   |
+                                   +-- fail / unknown key / signed after
+                                       compromise or revocation -->
+                                       quarantine: no grounding, no
+                                       promotion; audit; notify owner
 ```
 
 | Object | Holds | Kept in |
 |---|---|---|
-| Integrity attestation | Record ID and version, content digest, signing identity (user or service), source identity, time, trust-root reference | With the record in [2] or [5] |
+| Integrity attestation | Record ID and version, canonical serialization version, digest algorithm and digest, signature scheme and version, signing key ID, signing identity (user or service), source identity, trusted timestamp, trust-root reference, link to any earlier attestation | With the record in [2] or [5] |
 | Verification status | Verified, failed, unverified, or signer revoked; last check time; reason | [5]; audited in [9] |
 | Trust root | Organization-managed keys and authorities, rotation schedule, revocation list, expiry | [9], backed by the approved vault ([REQ-SEC-03](01-requirements.md#req-sec-03)) |
+| Historical trust chain | Every key and root with its validity period, revocation time, compromise time, and the algorithms it used; never deleted while records signed by it are retained | [9] |
 
 Rules:
 
 - **Covered records**, in proportion to risk: shared and organization-scope memory units, policy references, Skill versions, admission decisions, and verified outcome records ([§2.1](#21-decision-lineage)). Personal and working memory may be exempt by policy.
 - **Verify before use.** Verification is deterministic and runs before grounding (read path step 3, [§5](#5-read-path)) and before promotion ([§11.3](#113-shadow-evaluation-and-promotion)).
 - **Fail closed.** A record that fails verification, has an unknown key, or was signed only by a local self-signed agent identity is treated as unverified: quarantined, excluded from grounding and promotion, and reported to its owner as an audited incident. It stays in history and returns to use only after the owner re-verifies it.
-- **Revocation.** Records presented under a revoked identity or key do not inherit trust. Records it signed earlier are flagged and routed to owners as maintenance proposals ([§8.1](#81-memory-maintenance-orchestrator)).
+- **Key events** ([REQ-SEC-18](01-requirements.md#req-sec-18)):
+
+  | Event | New signatures | Records signed earlier |
+  |---|---|---|
+  | Routine rotation | Use the new key | Stay valid; verified against the historical trust chain |
+  | Expiry | Not accepted from the expired key | Stay valid if signed while the key was valid |
+  | Administrative revocation | Not trusted from that identity | Stay valid when the trusted timestamp is before the revocation |
+  | Compromise | Not trusted | Valid only when the trusted timestamp is before the compromise time; all others are treated as unverified and routed to owners as maintenance proposals ([§8.1](#81-memory-maintenance-orchestrator)) |
+
+- **Historical validity.** A record is verified against the trust chain that applied at its trusted signing time, not only against today's keys. Canonical serialization, digest, and signature versions are recorded so the same bytes are checked the same way years later ([REQ-SEC-19](01-requirements.md#req-sec-19)).
+- **Algorithm migration.** Before a digest or signature algorithm is retired, affected records are re-attested with the new algorithm and the earlier attestation stays linked. No retained record is left without a verifiable attestation.
 - **Integrity is not truth.** A valid attestation proves origin and that the record is unchanged. It does not make a claim grounding-eligible; that is still decided by [REQ-ME-16](01-requirements.md#req-me-16).
 
 ## 11. Evaluation loop
@@ -932,6 +947,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
 - [ ] Maintenance commits only on the expected version, retries are idempotent, legal hold and retention take precedence, and merges leave redirects ([REQ-ME-32…35](01-requirements.md#req-me-32)).
 - [ ] High-impact records are verified before grounding or promotion; a failed check quarantines the record, and a valid signature never makes a claim true ([REQ-SEC-16](01-requirements.md#req-sec-16), [REQ-SEC-17](01-requirements.md#req-sec-17), [REQ-SEC-18](01-requirements.md#req-sec-18)).
+- [ ] Attestations stay verifiable over time: routine rotation never casts doubt on older records, compromise is bounded by its compromise time, and records are re-attested before an algorithm is retired ([REQ-SEC-18…19](01-requirements.md#req-sec-18)).
 - [ ] A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself ([REQ-ME-21](01-requirements.md#req-me-21)).
 - [ ] Checkpoints are kept current during work and irreversible actions are journaled, so a crash loses at most the recovery point and never repeats an action blindly ([REQ-ME-31](01-requirements.md#req-me-31)).
 - [ ] Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the [REQ-ME-12](01-requirements.md#req-me-12) gates pass ([REQ-PR-14](01-requirements.md#req-pr-14), [REQ-ME-12](01-requirements.md#req-me-12)).
