@@ -204,11 +204,11 @@ Ten components. The write path runs left to right along the top; the read path r
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05) |
 | [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state and continuity checkpoints ([§2.3](#23-working-memory-and-continuity)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…25](01-requirements.md#req-me-01) |
-| [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state and continuity checkpoints ([§2.3](#23-working-memory-and-continuity)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…30](01-requirements.md#req-me-01) |
+| [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change; repaired by the maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
-| [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
+| [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; governs the maintenance orchestrator and its low-risk action list ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
 | [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…17](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
@@ -460,6 +460,51 @@ Recommended hybrid store: immutable evidence log + text/vector store + graph + r
 
 Every transition is versioned, attributed, and auditable. Forgetting means a unit stops influencing current work; its history stays until a governed deletion removes it.
 
+### 8.1 Memory maintenance orchestrator
+
+The orchestrator turns lifecycle rules into a running process ([REQ-ME-26](01-requirements.md#req-me-26)). It is a subservice spanning [5], [6], [9], and [10], not a new component. It runs under its own service identity, reads signals, and either runs an approved low-risk action or files a proposal. It never commits a change to canonical memory itself.
+
+```
+   TRIGGERS
+     schedule . threshold crossed . event (source, tool, schema, model change;
+     review date due; working-memory expiry)
+          |
+          v
+   MONITOR (REQ-ME-27)
+     growth . latency . duplicates . contradictions . staleness . expiry
+     harmful / ignored units [10] . skill drift . changed dependencies
+     due reviews . projection vs canonical [5]/[6]
+          |
+          v
+   DEPENDENCY WALK   derived_from / supported_by / compiled_from links
+          |          find every unit, skill, and projection entry affected
+          v
+   CLASSIFY the needed action
+          |
+          +--> on the owner-approved low-risk list (reversible) -----------+
+          |      e.g. rebuild stale projection entries [6];                |
+          |      expire working memory past its expiry [5]                 |
+          |                                                                v
+          |                                       run it; log trigger, prior version,
+          |                                       rollback path; on failure roll back
+          |                                       and notify the owner
+          |
+          +--> anything else ----> PROPOSAL to the owner queue
+                 review . dedupe . weaken . supersede . archive . expire
+                 invalidate . recompute . retire
+                 decided by an owner; committed by [4] or [9]
+```
+
+Rules:
+
+- No silent rewrite or deletion of evidence in [2] or canonical memory in [5]. Changes to [5] are committed only by [4] or [9] after an owner decision, or by an approved low-risk action ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-PR-09](01-requirements.md#req-pr-09)).
+- The low-risk list is owned by memory owners, governed by [9], versioned, and contains only reversible operations ([REQ-ME-30](01-requirements.md#req-me-30)). Adding to it is a governed change.
+- Every action and proposal records trigger, evidence, owner, acting identity, prior version, reason, time, and rollback path.
+- A failed automatic action is rolled back and shown to the owner on the dashboard ([§12.1](#121-management-dashboard)).
+- Dependency-driven repair follows derived-state links: when a source, tool, or schema changes, every derived unit and projection entry is flagged, and recomputation is proposed rather than performed on canonical memory ([REQ-ME-13](01-requirements.md#req-me-13), [§7](#7-canonical-memory-and-retrieval-projections)).
+- Existing flows keep their roles: contradiction triage (F3) and deprecation detection (F4) can be started by the orchestrator, and they still route to owners.
+- Maintenance is incremental. It never rebuilds accumulated memory as one rewrite ([REQ-ME-09](01-requirements.md#req-me-09)).
+
 Scope deprecation is a trigger on a whole population of units, not on one unit. The affected units are listed in one versioned and audited operation. A unit also supported by a non-deprecated source is weakened and routed to its owner for re-validation, not expired. Detection can be wrong (a repository archived by mistake, a procedure superseded only for one product), so the transition is reversible and the deprecation evidence is kept with it.
 
 ## 9. Scope and promotion
@@ -479,7 +524,7 @@ A unit that is visible but irrelevant is noise and is not delivered. A unit that
 |---|---|
 | Input | What may be captured, from which sources, under which identity; classification at capture |
 | Processing | What may be inferred; which model endpoints may be used ([REQ-SEC-08](01-requirements.md#req-sec-08)); sensitivity handling before admission |
-| Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback; deprecation transitions |
+| Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback; deprecation transitions; which maintenance actions may run automatically |
 | Output | Who may see and who should receive; policy precedence over local approval; fail closed when policy or permission data is missing |
 | Policy | Human ownership; authenticated changes; deterministic precedence across every interface and execution environment |
 
@@ -600,7 +645,7 @@ The dashboard ([REQ-NFR-11](01-requirements.md#req-nfr-11)) is a read-only view 
 | [C] Relations | Typed relationships with contradictions, supersessions, cross-scope links, path to evidence | Relationship records in [5]; graph projection in [6] for navigation only | [REQ-ME-05](01-requirements.md#req-me-05), [REQ-GOV-06](01-requirements.md#req-gov-06), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [D] Statistics | Capture volume, admission rate, retrieval latency, selection size against budget, outcome signals | Observability data; [10] outcome records | [REQ-NFR-01](01-requirements.md#req-nfr-01), [REQ-NFR-04](01-requirements.md#req-nfr-04), [REQ-EV-05](01-requirements.md#req-ev-05) |
 | [E] Net value | Cost, benefit, and net value per task class, per scope and version; baseline results | [10] ([§11.1](#111-net-value-accounting), [§11.2](#112-research-agent-baseline)) | [REQ-NFR-10](01-requirements.md#req-nfr-10), [REQ-EV-12](01-requirements.md#req-ev-12) |
-| [F] Health and actions | Adapter status, projection staleness, policy conflicts, deprecation notices, open contradictions, pending owner actions | Adapters [1]; projections [6]; [9]; flows F3 and F4 | [REQ-NFR-02](01-requirements.md#req-nfr-02), [REQ-ME-13](01-requirements.md#req-me-13), [REQ-GOV-06](01-requirements.md#req-gov-06) |
+| [F] Health and actions | Adapter status, projection staleness, policy conflicts, deprecation notices, open contradictions, pending owner actions, maintenance proposals, automatic actions and rollbacks | Adapters [1]; projections [6]; [9]; flows F3 and F4; maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | [REQ-NFR-02](01-requirements.md#req-nfr-02), [REQ-ME-13](01-requirements.md#req-me-13), [REQ-GOV-06](01-requirements.md#req-gov-06) |
 
 Rules: every request authenticated and authorized server-side; each panel computed from what the viewer may see, with out-of-scope items absent or shown as unknown, never as a hidden zero; identifiers and aggregates only, with raw content only on a permitted L2 drill-down; actions open the matching workflow in [4] or [9] under the viewer's identity; queries read projections and precomputed aggregates, not live scans of [2] or [5].
 
@@ -793,6 +838,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Forgetting preserves history; deletion is a separate governed operation ([REQ-ME-08](01-requirements.md#req-me-08)).
 - [ ] Interfaces are harness-neutral ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 - [ ] Reconstructions of observed work are stored beside raw evidence, never instead of it, and are reviewed by the observed employee before they become candidates ([REQ-IN-11](01-requirements.md#req-in-11), [REQ-IN-12](01-requirements.md#req-in-12)).
+- [ ] Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
 - [ ] A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself ([REQ-ME-21](01-requirements.md#req-me-21)).
 - [ ] Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the [REQ-ME-12](01-requirements.md#req-me-12) gates pass ([REQ-PR-14](01-requirements.md#req-pr-14), [REQ-ME-12](01-requirements.md#req-me-12)).
 - [ ] Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations ([REQ-IN-16](01-requirements.md#req-in-16)).

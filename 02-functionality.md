@@ -88,6 +88,8 @@ Memory decides what to keep, in what form, for how long, for whom, and when to s
 
 **Working-memory lifecycle** ([REQ-ME-19…25](01-requirements.md#req-me-19)): working memory belongs to one session, task, or handoff and expires with it. Before the session ends, the task is handed off, the context is reset, or it is compacted, the Brain writes a **continuity checkpoint**: objective, done and pending work, open decisions, constraints, dependencies, evidence and authority boundaries, and next actions. Compaction first removes obsolete and duplicate items by rule, then summarizes what is left, and records what it kept, removed, changed, and is unsure about. A checkpoint lets the task resume; it is not organizational knowledge and is never promoted by itself. What should last goes through the normal write path. Resume tests check that nothing is invented, repeated, or lost.
 
+**Background maintenance** ([REQ-ME-26…30](01-requirements.md#req-me-26)): the Brain checks itself on a schedule, when a measure crosses a threshold, and when something changes (a source, tool, schema, or model). It looks for growth, slow retrieval, duplicates, contradictions, stale or expired units, harmful or ignored units, skill drift, changed dependencies, due reviews, and indexes that disagree with canonical memory. A short owner-approved list of low-risk, reversible actions runs automatically, such as rebuilding a stale index. Everything else becomes a proposal in the owner's queue. Maintenance never silently rewrites or deletes evidence or canonical memory, and every action can be traced and rolled back.
+
 **Separate object classes, linked not merged** ([REQ-ME-03](01-requirements.md#req-me-03)): memories and lessons advise; skills execute; policies constrain and stay human-owned; authoritative references point to systems of record.
 
 **What every unit carries** ([REQ-ME-04](01-requirements.md#req-me-04)): identity, source and evidence, owner, creation context, confidence, visibility scope, relevance scope, version, freshness and validity, typed relationships (`derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`), usage and outcome history, source class, and its retention, retrieval, and grounding decisions.
@@ -161,6 +163,7 @@ Key behaviors:
 - Organizational policy has deterministic precedence over any local setting, user preference, personal memory, or locally approved agent action, in every interface and environment ([REQ-GOV-02](01-requirements.md#req-gov-02)).
 - Capture, inference, storage, retrieval, and promotion are authorized separately, per identity and scope ([REQ-GOV-03](01-requirements.md#req-gov-03)).
 - Only the unit's owner, or an authorized owner at the target scope, can change a unit's scope ([REQ-GOV-04](01-requirements.md#req-gov-04)).
+- Maintenance acts automatically only from the owner-approved low-risk list; every other maintenance change is a proposal an owner decides, and every action keeps its prior version and rollback path ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
 - Contradictions are recorded with both sides, their owners, and their evidence, and routed to owners ([REQ-GOV-06](01-requirements.md#req-gov-06)).
 - A unit derived from restricted sources is never visible more widely than its most restrictive source until an owner approves wider visibility ([REQ-GOV-10](01-requirements.md#req-gov-10)).
 - The system never authors or changes policy. It may propose a clearly flagged policy candidate for human approval ([REQ-GOV-11](01-requirements.md#req-gov-11)).
@@ -310,6 +313,14 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 5. The new instance resumes from the checkpoint. It does not run the migration again, keeps the API constraint, and asks for the rollout decision instead of assuming one. It re-checks the uncertain test.
 6. Other people searching the Brain do not see the checkpoint. If the session produced a lesson worth keeping, it reaches shared memory only through capture and admission.
 
+### 6.12 A tool changes under a skill (AS-14)
+
+1. A team changes the interface of an internal tool. The change arrives as an event.
+2. Maintenance finds a Skill and four lessons that depend on the old interface, and index entries that point to them.
+3. Rebuilding the affected index entries is on the low-risk list, so it runs automatically. The action is logged with its trigger, prior state, and rollback path.
+4. Changing the Skill or the lessons is not on the list. Maintenance sends the owner a proposal: weaken the Skill until it is re-validated, and review the lessons. The proposal shows the event and which units depend on the tool.
+5. The owner accepts weakening the Skill and rejects one lesson change. Both decisions go through admission and are audited. Nothing was rewritten before the owner decided.
+
 ## 7. Agentic flows
 
 An agentic flow is a place where a model decides something. Flows run on the existing components. No flow writes shared memory directly; the model-driven step writes only evidence, candidates, recommendations, or proposals, and deterministic services commit changes.
@@ -349,6 +360,7 @@ A read-only view over data the system already keeps. It adds no store and no wri
                              benefit: shorter sessions, fewer retries, less re-research, quality delta
    [F] HEALTH AND ACTIONS    adapters up / total . projection staleness . policy conflicts
                              deprecation notices . open contradictions . pending owner actions
+                             maintenance proposals . automatic actions and rollbacks
                              [approve] [promote] [resolve]  -> run through admission / governance
 
    drill-down: panel > unit > L1 > L2 evidence, only where the viewer is permitted
@@ -385,6 +397,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Forgetting preserves history; deletion is a separate governed operation.
 - Interfaces are harness-neutral.
 - Reconstructions of observed work are stored beside raw evidence and reviewed by the observed person before they become candidates.
+- Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically.
 - A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself.
 - Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the gates pass.
 - Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations.
