@@ -128,7 +128,7 @@ Reverse index: requirement area → sources that shaped it.
 | Input — observed work | [REQ-IN-09…14](01-requirements.md#req-in-09) | `[1]` `[2]` | [02](02-functionality.md) [§6.6](02-functionality.md#66-observed-work-becomes-a-skill-candidate-as-06) | I02, A02, A04 |
 | Input — sources and portability | [REQ-IN-15…16](01-requirements.md#req-in-15) | `[1]` `[4]` | [02](02-functionality.md) [§3.1](02-functionality.md#31-input-capture) | A16, I15, I08, P04 ([IN-15](01-requirements.md#req-in-15)) · I03, I10, P02 ([IN-16](01-requirements.md#req-in-16)) |
 | Processing | [REQ-PR-01…15](01-requirements.md#req-pr-01) | `[3]` | [02](02-functionality.md) [§3.2](02-functionality.md#32-processing-reflection-and-extraction) | A01, A03, A07, A13, I01, I02, I03, I10, I12 |
-| Memory | [REQ-ME-01…30](01-requirements.md#req-me-01) | `[4]` `[5]` | [02](02-functionality.md) [§3.3](02-functionality.md#33-memory-governed-retention), [§5](02-functionality.md#5-memory-lifecycle-functional-view) | F01, F02, F03, F04, A01, A05, A06, A16, A17, I01, I02, I15, P05, P07 |
+| Memory | [REQ-ME-01…31](01-requirements.md#req-me-01) | `[4]` `[5]` | [02](02-functionality.md) [§3.3](02-functionality.md#33-memory-governed-retention), [§5](02-functionality.md#5-memory-lifecycle-functional-view) | F01, F02, F03, F04, A01, A05, A06, A16, A17, I01, I02, I15, P05, P07 |
 | Evaluation | [REQ-EV-01…19](01-requirements.md#req-ev-01) | `[10]` | [02](02-functionality.md) [§3.6](02-functionality.md#36-evaluation-the-feedback-loop) | A09, A10, A11, A12, A13, A14, F02, I01, P07 |
 | Output — delivery | [REQ-OUT-01…18](01-requirements.md#req-out-01) | `[6]` `[7]` `[8]` | [02](02-functionality.md) [§3.4](02-functionality.md#34-output-context-delivery) | A06, A07, A15, A16, I01, I07, I08, I09, I13, F04, P07 |
 | Scope and promotion | [REQ-SC-01…06](01-requirements.md#req-sc-01) | `[4]` | [02](02-functionality.md) [§4](02-functionality.md#4-scope-and-promotion) | F02, F03, F04, I03, P02 |
@@ -158,6 +158,7 @@ Reverse index: requirement area → sources that shaped it.
 | [AS-15](01-requirements.md#as-15) | Tampered record | I01 |
 | [AS-16](01-requirements.md#as-16) | Purpose-dependent grounding | I01 (separation only; see [§5](#5-design-additions-without-an-external-source)) |
 | [AS-17](01-requirements.md#as-17) | Retrieval-policy shadow | A11, A13, A14 (comparison basis and conditions); side-effect isolation is a design addition |
+| [AS-18](01-requirements.md#as-18) | Crash mid-task | P07 (checkpoint content); crash safety is a design addition |
 | [OD-02](01-requirements.md#od-02) | Minimum experience-unit schema | A03 |
 | [OD-03](01-requirements.md#od-03) | Admission thresholds | A17 |
 | [OD-08](01-requirements.md#od-08) | Skill compilation and promotion | A05, I01 |
@@ -215,6 +216,7 @@ These items come from the design work itself, not from a cited resource. They ar
 | Grounding ceiling, per-request grounding decision, and permitted-use labels ([REQ-ME-15…16](01-requirements.md#req-me-15), [REQ-OUT-18](01-requirements.md#req-out-18), [AS-16](01-requirements.md#as-16)) | Extends I01's retention, retrieval, and grounding separation; the two-level model and the labels are ours |
 | Exposure, influence, and causal-evidence levels in attribution ([REQ-EV-06](01-requirements.md#req-ev-06)) and the lineage edge vocabulary ([REQ-ME-05](01-requirements.md#req-me-05)) | Extends A10's attribution discipline and I01's lineage; the three levels and edge names are ours |
 | [REQ-EV-18](01-requirements.md#req-ev-18), shadow side-effect isolation through read-only tool façades | Operational safety need; no research source |
+| [REQ-ME-31](01-requirements.md#req-me-31), crash-safe continuity: incremental checkpoints, action journal with idempotency keys, recovery point | Standard reliability practice; no research source |
 
 ## 6. Coverage notes and limits
 
