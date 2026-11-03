@@ -92,9 +92,9 @@ Memory decides what to keep, in what form, for how long, for whom, and when to s
 
 **Separate object classes, linked not merged** ([REQ-ME-03](01-requirements.md#req-me-03)): memories and lessons advise; skills execute; policies constrain and stay human-owned; authoritative references point to systems of record.
 
-**What every unit carries** ([REQ-ME-04](01-requirements.md#req-me-04)): identity, source and evidence, owner, creation context, confidence, visibility scope, relevance scope, version, freshness and validity, typed relationships (`derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`), usage and outcome history, source class, and its retention, retrieval, and grounding decisions.
+**What every unit carries** ([REQ-ME-04](01-requirements.md#req-me-04)): identity, source and evidence, owner, creation context, confidence, visibility scope, relevance scope, version, freshness and validity, typed relationships (`derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`), usage and outcome history, source class, its retention and retrieval decisions, and its grounding ceiling.
 
-**Kept, found, and trusted are different decisions** ([REQ-ME-15](01-requirements.md#req-me-15), [REQ-ME-16](01-requirements.md#req-me-16)): a unit can be kept (retention) and returned (retrieval) yet still not be allowed to support a factual claim, a recommendation, or a consequential action (grounding). Grounding eligibility is decided by rules from source class, evidence, authority, validity, freshness, visibility, purpose, task context, and policy, never by how often the unit is seen.
+**Kept, found, and trusted are different decisions** ([REQ-ME-15](01-requirements.md#req-me-15), [REQ-ME-16](01-requirements.md#req-me-16)): a unit can be kept (retention) and returned (retrieval) yet still not be allowed to support a factual claim, a recommendation, or a consequential action (grounding). Grounding eligibility is decided by rules from source class, evidence, authority, validity, freshness, visibility, purpose, task context, and policy, never by how often the unit is seen. The unit stores a **grounding ceiling**, the most it may ever support. Each request then gets its own decision for its purpose: a rough figure may support an informal explanation but not a payment approval. That decision is logged with the selection and never changes the unit.
 
 **Autobiographical memory** ([REQ-ME-17](01-requirements.md#req-me-17), [REQ-ME-18](01-requirements.md#req-me-18)): what an assistant itself said, believed, summarized, or judged about its own work. It is kept so a conversation or task can continue, but it is not evidence that what was said is true. Saying it again, summarizing it, or copying it into another unit does not make it trusted. It becomes grounding-eligible only when independent evidence (a tool result, a verified outcome, an authoritative reference, or a person's confirmation) supports it.
 
@@ -129,7 +129,7 @@ The budget is spent on L0 and L1 by default. L2 is pulled on request or when the
 
 **Advisory framing** ([REQ-OUT-16](01-requirements.md#req-out-16)): delivered memory is marked as advisory data with provenance and bounds. Neither humans nor models should treat it as policy or as a command.
 
-**Continuity only** ([REQ-OUT-18](01-requirements.md#req-out-18)): a unit that may be retrieved but not used for grounding is delivered, if relevant, marked as continuity only. It can explain what was said before; it cannot support a claim or an action. An action that needs grounding and finds only continuity-only memory treats the grounding as unknown and fails closed. L0 and L1 views carry the same mark as their canonical unit.
+**Permitted uses** ([REQ-OUT-18](01-requirements.md#req-out-18)): a unit that may be retrieved but not used for grounding in this request is delivered, if relevant, with a permitted-use label: `continuity` (what was said or done before), `hypothesis` (a lead to check), `disputed` (one side of an open contradiction), `audit` (context for a review), or `reflection` (input to learning). It can explain, suggest, or show disagreement; it cannot support a claim or an action. An action that needs grounding and finds only labeled non-grounding memory treats the grounding as unknown and fails closed. L0 and L1 views carry the same ceiling and labels as their canonical unit.
 
 **Absence means unknown** ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)): an empty, filtered, or unavailable result is reported as unknown. It is never read as approval, as "no constraints apply", or as "no prior decision exists". An action that requires authoritative memory or policy stops when that authority cannot be retrieved. The reason for absence may be withheld if revealing it would disclose restricted information ([REQ-OUT-12](01-requirements.md#req-out-12)).
 
@@ -390,7 +390,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 
 - The executing agent has no write path to shared memory.
 - No monolithic rewrite of accumulated memory, anywhere.
-- Deterministic identity, permission, policy, validity, authority, scope, and grounding-eligibility filters run before ranking.
+- Deterministic identity, permission, policy, validity, authority, scope, and per-request grounding-eligibility filters run before ranking.
 - Memory reaches the model before it reasons; exploration tools are never the only path.
 - Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
 - Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed.
