@@ -226,11 +226,11 @@ Ten components. The write path runs left to right along the top; the read path r
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived; holds integrity attestations for verified outcome records ([§10.1](#101-record-integrity-and-attestation)) | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating; signs admission decisions and verifies attestations before promotion | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02), [REQ-SEC-16](01-requirements.md#req-sec-16) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state, continuity checkpoints, and action journals ([§2.3](#23-working-memory-and-continuity)); attestation and verification status per high-impact unit version ([§10.1](#101-record-integrity-and-attestation)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…31](01-requirements.md#req-me-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state, continuity checkpoints, and action journals ([§2.3](#23-working-memory-and-continuity)); attestation and verification status per high-impact unit version ([§10.1](#101-record-integrity-and-attestation)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…35](01-requirements.md#req-me-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change; repaired by the maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility and integrity verification), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction, and update them during work; journal irreversible actions | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
-| [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; managed integrity and authenticity controls (signing identities, trust roots, rotation, revocation; [§10.1](#101-record-integrity-and-attestation)); governs the maintenance orchestrator and its low-risk action list ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
+| [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; managed integrity and authenticity controls (signing identities, trust roots, rotation, revocation; [§10.1](#101-record-integrity-and-attestation)); governs the maintenance orchestrator, its owned action classes and low-risk list, and legal holds that take precedence over maintenance ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
 | [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute by evidence level (exposure, influence, causal) along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…19](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
@@ -503,25 +503,35 @@ The orchestrator turns lifecycle rules into a running process ([REQ-ME-26](01-re
           v
    CLASSIFY the needed action
           |
+   PRECEDENCE   legal hold > retention / deletion > owner decision > automatic
+          |     conflict -> blocked, routed to policy owner (REQ-ME-33)
+          |
           +--> on the owner-approved low-risk list (reversible) -----------+
           |      e.g. rebuild stale projection entries [6];                |
           |      expire working memory past its expiry [5]                 |
           |                                                                v
-          |                                       run it; log trigger, prior version,
-          |                                       rollback path; on failure roll back
-          |                                       and notify the owner
+          |                                       commit only if expected version is
+          |                                       current; idempotency key; log trigger,
+          |                                       prior version, rollback path; on
+          |                                       failure roll back and notify the owner
           |
           +--> anything else ----> PROPOSAL to the owner queue
                  review . dedupe . weaken . supersede . archive . expire
                  invalidate . recompute . retire
                  decided by an owner; committed by [4] or [9]
+                 only if expected version is current, else stale -> re-evaluate
+                 merge / supersede / archive -> redirect to successor
 ```
 
 Rules:
 
 - No silent rewrite or deletion of evidence in [2] or canonical memory in [5]. Changes to [5] are committed only by [4] or [9] after an owner decision, or by an approved low-risk action ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-PR-09](01-requirements.md#req-pr-09)).
 - The low-risk list is owned by memory owners, governed by [9], versioned, and contains only reversible operations ([REQ-ME-30](01-requirements.md#req-me-30)). Adding to it is a governed change.
-- Every action and proposal records trigger, evidence, owner, acting identity, prior version, reason, time, and rollback path.
+- Every action and proposal records trigger, evidence, owner, acting identity, prior version, expected version, idempotency key, reason, time, and rollback path.
+- **Concurrency.** An action or proposal commits only if each unit is still at its expected version; a stale one is rejected and re-evaluated. An idempotency key makes retries safe. Conflicting actions on the same unit are serialized ([REQ-ME-32](01-requirements.md#req-me-32)).
+- **Precedence.** Legal hold comes first, then retention and deletion obligations, then owner decisions, then automatic maintenance. Maintenance never expires, archives, merges away, or deletes a record under hold, and never delays a retention or deletion obligation. Conflicts are blocked and routed to the policy owner ([REQ-ME-33](01-requirements.md#req-me-33)).
+- **Action-class ownership.** Each action class has a named owner who approves its place on the low-risk list, its scope, and its conditions. Proposals go to each affected unit's owner; if the class owner and a unit owner disagree, the action does not run and governance decides ([REQ-ME-34](01-requirements.md#req-me-34)).
+- **Redirects.** A merged-away, superseded, or archived unit stays as a redirect to its successor with its history. Links, dependents, selection logs, and evaluation records still resolve, and dependents are flagged through the dependency walk ([REQ-ME-35](01-requirements.md#req-me-35)).
 - A failed automatic action is rolled back and shown to the owner on the dashboard ([§12.1](#121-management-dashboard)).
 - Dependency-driven repair follows derived-state links: when a source, tool, or schema changes, every derived unit and projection entry is flagged, and recomputation is proposed rather than performed on canonical memory ([REQ-ME-13](01-requirements.md#req-me-13), [§7](#7-canonical-memory-and-retrieval-projections)).
 - Existing flows keep their roles: contradiction triage (F3) and deprecation detection (F4) can be started by the orchestrator, and they still route to owners.
@@ -546,7 +556,7 @@ A unit that is visible but irrelevant is noise and is not delivered. A unit that
 |---|---|
 | Input | What may be captured, from which sources, under which identity; classification at capture |
 | Processing | What may be inferred; which model endpoints may be used ([REQ-SEC-08](01-requirements.md#req-sec-08)); sensitivity handling before admission |
-| Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback; deprecation transitions; which maintenance actions may run automatically |
+| Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback; deprecation transitions; legal holds; which maintenance action classes may run automatically, and who owns each |
 | Output | Who may see and who should receive; policy precedence over local approval; fail closed when policy or permission data is missing |
 | Policy | Human ownership; authenticated changes; deterministic precedence across every interface and execution environment |
 | Integrity | Which records must be attested; managed signing identities; trust roots, rotation, revocation, expiry; quarantine on failed verification ([§10.1](#101-record-integrity-and-attestation)) |
@@ -873,6 +883,8 @@ An alternative framing describes this system as a "context layer": a service tha
 | A deprecated source keeps steering work | Lessons from an archived repository or retired procedure keep being supplied | Scope or source deprecation weakens or expires every derived unit ([REQ-ME-13](01-requirements.md#req-me-13)) |
 | Imported memory admitted as truth | Memory from another system is trusted because it arrived in a clean format | Imports enter as candidates with provenance and pass admission ([REQ-IN-16](01-requirements.md#req-in-16), [REQ-IN-06](01-requirements.md#req-in-06)) |
 | Crash loses or repeats work | The process dies before any end-of-session step; the resumed task redoes an irreversible action or forgets a recent constraint | Incremental checkpoints, action journal with idempotency keys, reconcile with external state on resume ([REQ-ME-31](01-requirements.md#req-me-31)) |
+| Maintenance race | Two maintenance actions, or an action and an owner edit, hit the same unit; one silently overwrites the other, or a merge breaks references | Expected-version preconditions, idempotency keys, serialized conflicts, redirects on merge ([REQ-ME-32](01-requirements.md#req-me-32), [REQ-ME-35](01-requirements.md#req-me-35)) |
+| Cleanup destroys held records | Automatic expiry or deduplication removes a record under legal hold | Fixed precedence: legal hold before retention, owner decisions, and automation ([REQ-ME-33](01-requirements.md#req-me-33)) |
 | Observation without notice or redaction | Screens and terminals are recorded silently, or secrets leave the workstation | Notice and employee control; on-device redaction; approved endpoints only ([REQ-IN-13](01-requirements.md#req-in-13), [REQ-IN-14](01-requirements.md#req-in-14)) |
 
 ### 16.6 Building blocks, not a brain
@@ -918,6 +930,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Interfaces are harness-neutral ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 - [ ] Reconstructions of observed work are stored beside raw evidence, never instead of it, and are reviewed by the observed employee before they become candidates ([REQ-IN-11](01-requirements.md#req-in-11), [REQ-IN-12](01-requirements.md#req-in-12)).
 - [ ] Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
+- [ ] Maintenance commits only on the expected version, retries are idempotent, legal hold and retention take precedence, and merges leave redirects ([REQ-ME-32…35](01-requirements.md#req-me-32)).
 - [ ] High-impact records are verified before grounding or promotion; a failed check quarantines the record, and a valid signature never makes a claim true ([REQ-SEC-16](01-requirements.md#req-sec-16), [REQ-SEC-17](01-requirements.md#req-sec-17), [REQ-SEC-18](01-requirements.md#req-sec-18)).
 - [ ] A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself ([REQ-ME-21](01-requirements.md#req-me-21)).
 - [ ] Checkpoints are kept current during work and irreversible actions are journaled, so a crash loses at most the recovery point and never repeats an action blindly ([REQ-ME-31](01-requirements.md#req-me-31)).
