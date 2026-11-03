@@ -115,6 +115,49 @@ Rules:
 - Repetition is not corroboration. The count of statements, retrievals, or copies never enters the grounding decision.
 - Grounding eligibility is never higher than the eligibility of the evidence the unit rests on.
 
+### 2.3 Working memory and continuity
+
+Working memory is temporary state for one session, task, or handoff ([REQ-ME-19](01-requirements.md#req-me-19)). It lives in a separate working-memory area of [5] and never mixes with shared memory.
+
+```
+   SESSION / TASK   working memory: objective, state, constraints, open decisions
+          |
+          |  trigger: session end . handoff . reset . compaction   ([8] hook)
+          v
+   1. DETERMINISTIC CLEANUP   remove obsolete and duplicate items by rule;
+          |                   no model call; every removal names its rule
+          v
+   2. SEMANTIC COMPACTION     summarize what remains; keep provenance, roles,
+          |                   authority boundaries, open state, evidence links,
+          |                   grounding status
+          v
+   3. CONTINUITY CHECKPOINT  ---------->  [5] working-memory area
+      COMPACTION RECORD      ---------->  [2] as evidence
+          |                               retained . removed . transformed . uncertain
+          v
+   4. RESUME   [7] loads the checkpoint for the same task only
+               resume tests: invented state . repeated work . lost constraints
+          |
+          +--> durable memory only through the normal write path: [3] -> [4]
+```
+
+| Object | What it is | Where | Key attributes |
+|---|---|---|---|
+| Working-memory state | Temporary operational state of one session or task | [5] working-memory area | owner, session or task id, scope, expiry |
+| Continuity checkpoint | What the task needs to resume ([REQ-ME-20](01-requirements.md#req-me-20)) | [5] working-memory area | objective, completed and pending work, unresolved decisions, constraints, dependencies, evidence links, authority boundaries, next actions, source session, time |
+| Compaction record | Audit of one compaction ([REQ-ME-23](01-requirements.md#req-me-23)) | [2] | trigger, retained, removed (with rule), transformed, uncertain, checkpoint id, time |
+
+Rules:
+
+- [7] returns a checkpoint only to resume its own task, to identities allowed on that task. It is never returned as organizational knowledge ([REQ-ME-21](01-requirements.md#req-me-21)).
+- Nothing in a checkpoint is admitted or promoted automatically. Content that should last goes through [3] and [4] like any other evidence ([REQ-PR-09](01-requirements.md#req-pr-09), [REQ-SC-02](01-requirements.md#req-sc-02)).
+- Deterministic cleanup runs before semantic compaction ([REQ-ME-22](01-requirements.md#req-me-22)).
+- Compaction keeps grounding status: autobiographical content stays autobiographical in the checkpoint ([§2.2](#22-retention-retrieval-and-grounding)).
+- Uncertain items stay marked as uncertain in the checkpoint and the compaction record; a clean-looking summary is not a substitute ([REQ-ME-23](01-requirements.md#req-me-23)).
+- Resume tests run in [10]; a failure is recorded as evidence ([REQ-ME-24](01-requirements.md#req-me-24)).
+- Hidden model reasoning is not stored as required memory; decisions, evidence, corrections, and observable outcomes are ([REQ-ME-25](01-requirements.md#req-me-25)).
+- Working-memory state and checkpoints expire with their scope under [9] retention rules.
+
 ## 3. Logical architecture
 
 Ten components. The write path runs left to right along the top; the read path runs right to left below it; the evaluation loop closes the cycle.
@@ -161,10 +204,10 @@ Ten components. The write path runs left to right along the top; the read path r
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05) |
 | [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…18](01-requirements.md#req-me-01) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state and continuity checkpoints ([§2.3](#23-working-memory-and-continuity)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…25](01-requirements.md#req-me-01) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01) |
-| [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
+| [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
 | [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…17](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
@@ -534,7 +577,7 @@ Rules:
 
 | Surface | Purpose | Notes |
 |---|---|---|
-| Harness lifecycle hooks | Proactive retrieval on `SessionStart` and `UserPromptSubmit` equivalents; outcome capture on session end or task completion | The primary read path. Hook handlers live in [8]; they pass prompt and state to [7] and inject the composed context. |
+| Harness lifecycle hooks | Proactive retrieval on `SessionStart` and `UserPromptSubmit` equivalents; outcome capture on session end or task completion; continuity checkpoint on session end, handoff, reset, or compaction ([§2.3](#23-working-memory-and-continuity)) | The primary read path. Hook handlers live in [8]; they pass prompt and state to [7] and inject the composed context. |
 | MCP server | Exploratory access: inspect a unit's source, expand to L2, list related units, report an outcome, review a transcript | Illustrative tools: `memory.explore`, `memory.inspect_source`, `memory.expand_evidence`, `memory.report_outcome`, `memory.review_transcript`. Names are not normative. Never the only delivery path. |
 | Source adapters | Pull or receive evidence from systems of record and work surfaces | The only components that touch external systems; run under scoped identities ([REQ-SEC-10](01-requirements.md#req-sec-10)). |
 | Code-graph adapter | Ingest code graphs next to the code | Records repository, commit, and builder version on every entity and relation ([REQ-IN-15](01-requirements.md#req-in-15)); invalidates derived units when the code changes. |
@@ -750,6 +793,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Forgetting preserves history; deletion is a separate governed operation ([REQ-ME-08](01-requirements.md#req-me-08)).
 - [ ] Interfaces are harness-neutral ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 - [ ] Reconstructions of observed work are stored beside raw evidence, never instead of it, and are reviewed by the observed employee before they become candidates ([REQ-IN-11](01-requirements.md#req-in-11), [REQ-IN-12](01-requirements.md#req-in-12)).
+- [ ] A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself ([REQ-ME-21](01-requirements.md#req-me-21)).
 - [ ] Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the [REQ-ME-12](01-requirements.md#req-me-12) gates pass ([REQ-PR-14](01-requirements.md#req-pr-14), [REQ-ME-12](01-requirements.md#req-me-12)).
 - [ ] Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations ([REQ-IN-16](01-requirements.md#req-in-16)).
 - [ ] Deprecation of a scope or source weakens or expires every unit derived from it, with history preserved and owners notified ([REQ-ME-13](01-requirements.md#req-me-13)).

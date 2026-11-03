@@ -86,6 +86,8 @@ Memory decides what to keep, in what form, for how long, for whom, and when to s
 | Durable knowledge | Facts and lessons distilled across experiences | Team to organization |
 | Personal context | One person's preferences and working patterns | Personal |
 
+**Working-memory lifecycle** ([REQ-ME-19…25](01-requirements.md#req-me-19)): working memory belongs to one session, task, or handoff and expires with it. Before the session ends, the task is handed off, the context is reset, or it is compacted, the Brain writes a **continuity checkpoint**: objective, done and pending work, open decisions, constraints, dependencies, evidence and authority boundaries, and next actions. Compaction first removes obsolete and duplicate items by rule, then summarizes what is left, and records what it kept, removed, changed, and is unsure about. A checkpoint lets the task resume; it is not organizational knowledge and is never promoted by itself. What should last goes through the normal write path. Resume tests check that nothing is invented, repeated, or lost.
+
 **Separate object classes, linked not merged** ([REQ-ME-03](01-requirements.md#req-me-03)): memories and lessons advise; skills execute; policies constrain and stay human-owned; authoritative references point to systems of record.
 
 **What every unit carries** ([REQ-ME-04](01-requirements.md#req-me-04)): identity, source and evidence, owner, creation context, confidence, visibility scope, relevance scope, version, freshness and validity, typed relationships (`derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`), usage and outcome history, source class, and its retention, retrieval, and grounding decisions.
@@ -299,6 +301,15 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 4. The owner opens the promotion request. The record shows the aggregate gain, the contexts counted, the threshold for this capability class and risk, and the protected regression. Promotion is blocked.
 5. The candidate is revised. The new version starts its evidence again; it does not inherit the old version's results.
 
+### 6.11 A handoff that does not lose or invent state (AS-13)
+
+1. An agent is halfway through a long task. It has run a database migration (irreversible), a reviewer has said "do not touch the public API", and the choice between two rollout plans is still open.
+2. The context fills up and is compacted, and the task is handed to another agent instance.
+3. Before compaction, obsolete and duplicate items are removed by rule. The summary that follows keeps who said what, the reviewer's constraint, the open choice, and the evidence links. The compaction record lists what was removed and marks one test result as uncertain.
+4. The checkpoint states: objective, migration done, remaining steps, the API constraint, the open rollout decision, and next actions.
+5. The new instance resumes from the checkpoint. It does not run the migration again, keeps the API constraint, and asks for the rollout decision instead of assuming one. It re-checks the uncertain test.
+6. Other people searching the Brain do not see the checkpoint. If the session produced a lesson worth keeping, it reaches shared memory only through capture and admission.
+
 ## 7. Agentic flows
 
 An agentic flow is a place where a model decides something. Flows run on the existing components. No flow writes shared memory directly; the model-driven step writes only evidence, candidates, recommendations, or proposals, and deterministic services commit changes.
@@ -349,7 +360,7 @@ Rules: every request is authenticated and authorized server-side; items outside 
 
 | Surface | Purpose | Notes |
 |---|---|---|
-| Harness lifecycle hooks | Proactive retrieval on `SessionStart` and `UserPromptSubmit` equivalents; outcome capture on session end or task completion | The primary read path |
+| Harness lifecycle hooks | Proactive retrieval on `SessionStart` and `UserPromptSubmit` equivalents; outcome capture on session end or task completion; continuity checkpoint on session end, handoff, reset, or compaction | The primary read path |
 | MCP server | Exploration: inspect a unit's source, expand to L2, list related units, report an outcome | Illustrative tools: `memory.explore`, `memory.inspect_source`, `memory.expand_evidence`, `memory.report_outcome`, `memory.review_transcript`. Never the only delivery path |
 | Source adapters | Pull or receive evidence from systems of record and work surfaces | The only components that touch external systems; run under scoped identities |
 | Code-graph adapter | Ingest code graphs beside the code | Records repository, commit, and builder version; invalidates derived units when the code changes |
@@ -374,6 +385,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Forgetting preserves history; deletion is a separate governed operation.
 - Interfaces are harness-neutral.
 - Reconstructions of observed work are stored beside raw evidence and reviewed by the observed person before they become candidates.
+- A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself.
 - Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the gates pass.
 - Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations.
 - Deprecation of a scope or source weakens or expires every derived unit, with history preserved and owners notified.

@@ -89,6 +89,12 @@ Each table lists: the KPI, how it is computed, the data source, the granularity 
 | Deprecation response | Time from deprecation evidence to weakening or expiry of derived units; units affected | F4, [9] | source | Per event | Memory owner | **Proposal:** < 24 hours from detection to transition |
 | Projection staleness | Time between a canonical change in [5] and projection update in [6]; count of stale projections | [6] change-feed lag | projection type | Continuous | Platform admin | **Proposal:** p95 < 5 minutes; any stale read is a correctness bug |
 | Rebuild success | Share of scheduled projection and L0/L1 rebuild drills that complete from [5] and [2] | [6] | — | Quarterly | Platform admin | 100% |
+| Checkpoint completeness | Share of continuity checkpoints carrying every [REQ-ME-20](01-requirements.md#req-me-20) field | [5], [8] | trigger (session end, handoff, reset, compaction) | Weekly | Memory owner | 100% |
+| Resume success | Share of resume tests passed (no invented state, no repeated work, no lost constraint) | [10] | trigger, task class | Weekly | Memory owner | **Proposal:** ≥ 95%; each failure reviewed ([REQ-ME-24](01-requirements.md#req-me-24)) |
+| Repeated-work rate after resume | Share of resumed tasks that repeat an already completed operation | [10], [2] | task class, operation type | Weekly | Memory owner | Zero for irreversible operations; each case reviewed |
+| Invented-state failures | Resume tests where the resumed agent asserts state found in neither the checkpoint nor the evidence | [10] | task class | Weekly | Memory owner | Target zero; each case reviewed |
+| Lost-constraint failures | Resume tests where a material constraint present before the transition is missing after it | [10] | task class | Weekly | Memory owner | Target zero; each case reviewed |
+| Deterministic-cleanup share | Share of compactions where rule-based cleanup ran before semantic summarization; share of removed items removed by rule | [2] compaction records | trigger | Weekly | Platform admin | 100% ran first ([REQ-ME-22](01-requirements.md#req-me-22)); share informational |
 
 ### 3.5 Delivery (read path)
 
@@ -267,6 +273,7 @@ Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-re
 | [AS-10](01-requirements.md#as-10) Decision lineage | Scripted trajectory yields a linked, verified chain; the unselected proposal and the unverified execution are handled correctly | Decision-lineage completeness, verified-outcome coverage |
 | [AS-11](01-requirements.md#as-11) Self-reinforcing model claim | Repeated and summarized assistant claim stays continuity only; grounding blocked until independent evidence | Ineligible-grounding attempts blocked, projection-policy parity |
 | [AS-12](01-requirements.md#as-12) Protected regression | Scripted candidate with better average and one protected failure is blocked; shadow output never reaches production | Protected-regression count, promotion evidence sufficiency, shadow coverage |
+| [AS-13](01-requirements.md#as-13) Session continuity | Scripted compaction and handoff; resumed agent neither repeats the irreversible step nor loses the constraint; checkpoint absent from organizational retrieval | Resume success, repeated-work rate after resume, lost-constraint failures, checkpoint completeness |
 
 ## 5. Phase gates
 

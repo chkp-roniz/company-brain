@@ -103,7 +103,7 @@ In the tables below the `SRC-` prefix is dropped where space is short (`A01` = `
 
 ### 2.4 Practitioner inputs
 
-Public practitioner discussions that shaped the framing. Author names and links are intentionally omitted; each entry records only the idea it contributed.
+Public practitioner discussions that shaped the framing. Author names are intentionally omitted, and links are given only where recorded; each entry records the idea it contributed.
 
 | ID | Input | Label | Pillar | Contributes | Maps to |
 |---|---|---|---|---|---|
@@ -113,7 +113,7 @@ Public practitioner discussions that shaped the framing. Author names and links 
 | SRC-P04 | Knowledge graphs as agent memory | Supporting | A | Graph as a provenance-preserving retrieval projection, not the brain | [REQ-IN-15](01-requirements.md#req-in-15); [03](03-architecture.md) [§7](03-architecture.md#7-canonical-memory-and-retrieval-projections), [§16.6](03-architecture.md#166-building-blocks-not-a-brain) |
 | SRC-P05 | Ontology and RDF in practice | Supporting | A | Stable canonical identity, typed relationships, reversible entity resolution, versioned semantics | [REQ-ME-05](01-requirements.md#req-me-05); [03](03-architecture.md) [§7.1](03-architecture.md#71-semantic-identity-and-relationship-typing) |
 | SRC-P06 | Ad hoc analytical work | Supporting | R F | Capture gap in query history, notebooks, BI, and research trails | [REQ-IN-08](01-requirements.md#req-in-08); [02](02-functionality.md) [§3.1](02-functionality.md#31-input-capture) |
-| SRC-P07 | Five-layer memory and meta-memory | Direct | R F | Working-memory continuity, scheduled and event-driven maintenance, drift checks, outcome loop | [REQ-ME-02](01-requirements.md#req-me-02), [REQ-EV-10](01-requirements.md#req-ev-10), [REQ-OUT-02](01-requirements.md#req-out-02); [02](02-functionality.md) [§5](02-functionality.md#5-memory-lifecycle-functional-view); [03](03-architecture.md) [§8](03-architecture.md#8-memory-lifecycle) |
+| SRC-P07 | [Five-layer memory and meta-memory](https://lnkd.in/p/d2ipxmdj) | Direct | R F | Working-memory continuity, scheduled and event-driven maintenance, drift checks, outcome loop | [REQ-ME-02](01-requirements.md#req-me-02), [REQ-ME-19…25](01-requirements.md#req-me-19), [AS-13](01-requirements.md#as-13), [REQ-EV-10](01-requirements.md#req-ev-10), [REQ-OUT-02](01-requirements.md#req-out-02); [02](02-functionality.md) [§5](02-functionality.md#5-memory-lifecycle-functional-view); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity), [§8](03-architecture.md#8-memory-lifecycle) |
 
 ---
 
@@ -128,7 +128,7 @@ Reverse index: requirement area → sources that shaped it.
 | Input — observed work | [REQ-IN-09…14](01-requirements.md#req-in-09) | `[1]` `[2]` | [02](02-functionality.md) [§6.6](02-functionality.md#66-observed-work-becomes-a-skill-candidate-as-06) | I02, A02, A04 |
 | Input — sources and portability | [REQ-IN-15…16](01-requirements.md#req-in-15) | `[1]` `[4]` | [02](02-functionality.md) [§3.1](02-functionality.md#31-input-capture) | A16, I15, I08, P04 ([IN-15](01-requirements.md#req-in-15)) · I03, I10, P02 ([IN-16](01-requirements.md#req-in-16)) |
 | Processing | [REQ-PR-01…15](01-requirements.md#req-pr-01) | `[3]` | [02](02-functionality.md) [§3.2](02-functionality.md#32-processing-reflection-and-extraction) | A01, A03, A07, A13, I01, I02, I03, I10, I12 |
-| Memory | [REQ-ME-01…18](01-requirements.md#req-me-01) | `[4]` `[5]` | [02](02-functionality.md) [§3.3](02-functionality.md#33-memory-governed-retention), [§5](02-functionality.md#5-memory-lifecycle-functional-view) | F01, F02, F03, F04, A01, A05, A06, A16, A17, I01, I02, I15, P05, P07 |
+| Memory | [REQ-ME-01…25](01-requirements.md#req-me-01) | `[4]` `[5]` | [02](02-functionality.md) [§3.3](02-functionality.md#33-memory-governed-retention), [§5](02-functionality.md#5-memory-lifecycle-functional-view) | F01, F02, F03, F04, A01, A05, A06, A16, A17, I01, I02, I15, P05, P07 |
 | Evaluation | [REQ-EV-01…17](01-requirements.md#req-ev-01) | `[10]` | [02](02-functionality.md) [§3.6](02-functionality.md#36-evaluation-the-feedback-loop) | A09, A10, A11, A12, A13, A14, F02, I01, P07 |
 | Output — delivery | [REQ-OUT-01…18](01-requirements.md#req-out-01) | `[6]` `[7]` `[8]` | [02](02-functionality.md) [§3.4](02-functionality.md#34-output-context-delivery) | A06, A07, A15, A16, I01, I07, I08, I09, I13, F04, P07 |
 | Scope and promotion | [REQ-SC-01…06](01-requirements.md#req-sc-01) | `[4]` | [02](02-functionality.md) [§4](02-functionality.md#4-scope-and-promotion) | F02, F03, F04, I03, P02 |
@@ -153,6 +153,7 @@ Reverse index: requirement area → sources that shaped it.
 | [AS-10](01-requirements.md#as-10) | Decision lineage | I01 |
 | [AS-11](01-requirements.md#as-11) | Self-reinforcing model claim | I01, A06 |
 | [AS-12](01-requirements.md#as-12) | Protected regression | I01, A13, A14 |
+| [AS-13](01-requirements.md#as-13) | Session continuity | P07 |
 | [OD-02](01-requirements.md#od-02) | Minimum experience-unit schema | A03 |
 | [OD-03](01-requirements.md#od-03) | Admission thresholds | A17 |
 | [OD-08](01-requirements.md#od-08) | Skill compilation and promotion | A05, I01 |
@@ -174,6 +175,7 @@ Quick lookup for the design ideas that recur across the documents.
 | Deprecation as a lifecycle trigger | [REQ-ME-13](01-requirements.md#req-me-13) | A16, F02 |
 | Utility ≠ validity, per version | [REQ-EV-01…04](01-requirements.md#req-ev-01) | A09, A11, A14 |
 | Failure attribution | [REQ-EV-06](01-requirements.md#req-ev-06) | A10 |
+| Session continuity and compaction | [REQ-ME-19…25](01-requirements.md#req-me-19); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity) | P07 |
 | Shadow evaluation and risk-calibrated promotion | [REQ-EV-13…17](01-requirements.md#req-ev-13), [REQ-ME-12](01-requirements.md#req-me-12); [03](03-architecture.md) [§11.3](03-architecture.md#113-shadow-evaluation-and-promotion); [04](04-kpi-and-measurements.md) [§4.5](04-kpi-and-measurements.md#45-shadow-evaluation) | I01, A09, A11, A13, A14 |
 | Decision lineage and verified outcomes | [REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14); [03](03-architecture.md) [§2.1](03-architecture.md#21-decision-lineage) | I01 |
 | Net value and no-memory baseline | [REQ-NFR-10](01-requirements.md#req-nfr-10), [REQ-EV-12](01-requirements.md#req-ev-12); [04](04-kpi-and-measurements.md) [§3.7](04-kpi-and-measurements.md#37-net-value), [§4.2–4.3](04-kpi-and-measurements.md#42-net-value-ab-or-paired-protocol) | A12, A13, A11 |
