@@ -184,7 +184,7 @@ What the loop does:
 - counts an outcome as verified only when an explicit acceptance criterion was checked by a named evaluator; a successful execution alone is not a verified outcome ([REQ-ME-14](01-requirements.md#req-me-14))
 - weakens or suspends a version when harmful signals accumulate ([AS-03](01-requirements.md#as-03))
 - tests unvalidated units only in safe environments or canaries and never weakens policy or security controls to do so ([REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09))
-- runs **shadow evaluation** for candidate skills, rules, procedures, and memory-policy changes: the candidate sees the same eligible context as the active path, its output is recorded and compared with the active path and a no-candidate baseline, and it never controls production ([REQ-EV-13…15](01-requirements.md#req-ev-13))
+- runs **shadow evaluation** for candidate skills, rules, procedures, and memory-policy changes: every arm works from the same task, permissions, and snapshots of sources and external state. A candidate skill gets the same context as the active path; a candidate retrieval policy picks its own context from the same evidence, and both picks are logged. Outputs are compared with the active path and a no-candidate baseline. The candidate never controls production and never changes anything: its tools are read-only, and an action it would take is recorded, not done ([REQ-EV-13…19](01-requirements.md#req-ev-13))
 - counts promotion evidence by distinct contexts, not by repeated runs, and blocks promotion on any protected-task regression; the evidence threshold is set by risk and blast radius ([REQ-EV-16](01-requirements.md#req-ev-16), [REQ-EV-17](01-requirements.md#req-ev-17), [REQ-ME-12](01-requirements.md#req-me-12))
 - computes **net value** per task class: outcome benefit minus the cost of the write path, injected context, and retrieval ([REQ-NFR-10](01-requirements.md#req-nfr-10))
 - runs a **research-agent baseline**: for each task class, Brain-supplied context must match or beat a from-scratch research agent on quality while costing less in tokens and latency ([REQ-EV-12](01-requirements.md#req-ev-12))
@@ -300,7 +300,7 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 
 ### 6.10 A better average, a protected regression (AS-12)
 
-1. A candidate rule is created from repeated work. It enters shadow evaluation: on each matching task it sees the same eligible context as the active path and records what it would do. The active path still decides.
+1. A candidate rule is created from repeated work. It enters shadow evaluation: on each matching task it gets the same task, permissions, snapshots, and context as the active path, works through read-only tools, and records what it would do. The active path still decides.
 2. Over the following weeks [10] compares the candidate, the active path, and a no-candidate baseline on the same tasks. It records applicability, abstentions, agreement, execution validity, verified outcomes, and negative transfer. Ten replays of one task count as one context.
 3. The candidate is better on average across many distinct contexts, but it fails one task the owner marked as protected.
 4. The owner opens the promotion request. The record shows the aggregate gain, the contexts counted, the threshold for this capability class and risk, and the protected regression. Promotion is blocked.
