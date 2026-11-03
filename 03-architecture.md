@@ -166,7 +166,7 @@ Ten components. The write path runs left to right along the top; the read path r
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
-| [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…12](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
+| [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…17](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 
@@ -243,7 +243,9 @@ Observation is the richest input the system has and the most sensitive. The pipe
    GATES  a Skill Candidate becomes a Skill only when ALL pass; each result is recorded
      [ ] compared with additional examples of the same intent
      [ ] checked against applicable policy
-     [ ] evaluated on real outcomes in a safe environment or canary
+     [ ] evaluated on real outcomes in a safe environment, canary, or shadow;
+         evidence across distinct contexts meets the risk-set threshold;
+         no protected regression
      [ ] approved by an owner
      [ ] versioned
      [ ] reversible: can be disabled and rolled back
@@ -452,6 +454,7 @@ What the loop does:
 - triggers weakening or suspension when harmful signals accumulate against a version ([AS-03](01-requirements.md#as-03))
 - never lets a new or materially changed version inherit its predecessor's utility ([REQ-EV-04](01-requirements.md#req-ev-04))
 - runs evaluation of unvalidated units only in safe environments, canaries, or low-risk tasks, and never weakens mandatory policy or security controls to do so ([REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09))
+- runs shadow evaluation for candidate skills, rules, procedures, and material memory-policy changes, and produces the promotion evidence record ([§11.3](#113-shadow-evaluation-and-promotion))
 
 Attribution with several units supplied at once, delayed outcomes, and partly subjective signals is a core design problem, not an afterthought. Its design is a Phase 0 deliverable.
 
@@ -488,6 +491,44 @@ How it is measured: an A/B or paired protocol runs comparable work with and with
 ```
 
 Rules: the baseline agent gets the same objective, approved endpoints, and safe environment, and has no read access to [5], [6], or [2]; quality is judged against what actually happened (tests passed, review accepted, defects found later); the judging method is fixed before the run; a failing result marks units as weakening candidates and deletes nothing; the protocol is re-run on a schedule per task class because memory grows and baseline models improve.
+
+### 11.3 Shadow evaluation and promotion
+
+Shadow evaluation tests a candidate skill, rule, procedure, or material memory-policy change on real work without letting it control anything ([REQ-EV-13](01-requirements.md#req-ev-13)).
+
+```
+   task (live or replayed) -- task identity + evidence set --+
+          |                                                  |
+   [7] deterministic filters (same for every arm, OUT-06 / OUT-18)
+          |                     |                            |
+   ACTIVE ARM             SHADOW ARM                  BASELINE ARM
+   controls production    candidate output recorded   no candidate
+                          only; no write path         (where feasible)
+          |                     |                            |
+          +---------------------+----------------------------+
+                                v
+   [10] compare on the same task identity and evidence set:
+        applicability . abstention . agreement . execution validity
+        verified outcome . negative transfer
+                                |
+                                v
+   PROMOTION EVIDENCE RECORD (per candidate version)
+        distinct contexts counted . threshold applied and why
+        protected-task results . aggregate result vs active and baseline
+                                |
+        +--> protected regression -----------------> blocked; stays a candidate
+        +--> evidence below threshold --------------> hold; keep evaluating
+        +--> evidence meets threshold, no regression -> recommendation to owner via [4]
+```
+
+Rules:
+
+- All arms get the same eligible context; the shadow arm gets no more access than the active path and runs under its own scoped identity ([REQ-EV-14](01-requirements.md#req-ev-14)).
+- Candidate, active, and baseline outputs are recorded against the same task identity and evidence set, so comparisons are like for like ([REQ-EV-15](01-requirements.md#req-ev-15)).
+- Evidence is counted by distinct representative contexts. Repeated runs on one context or one replay count once ([REQ-EV-16](01-requirements.md#req-ev-16)).
+- A regression on a protected task blocks promotion whatever the aggregate shows ([REQ-EV-17](01-requirements.md#req-ev-17)).
+- The threshold is set per capability class, domain, evidence strength and diversity, risk, and blast radius; the record states which threshold applied and why ([REQ-ME-12](01-requirements.md#req-me-12), [OD-08](01-requirements.md#od-08)). No count is universal.
+- [10] only recommends. Promotion is an owner decision committed through [4]. A changed version starts its evidence again ([REQ-EV-04](01-requirements.md#req-ev-04)).
 
 ## 12. Integration surfaces
 
@@ -532,8 +573,8 @@ An agentic flow is a place where a model decides something. Flows are not new co
 | F4 | Deprecation detection | Periodic source-status scan; adapter status change | [1] [3] [4] [9] | [REQ-ME-13](01-requirements.md#req-me-13), [REQ-ME-06](01-requirements.md#req-me-06), [REQ-GOV-07](01-requirements.md#req-gov-07), [REQ-IN-07](01-requirements.md#req-in-07) | Deprecation evidence and proposal; [4] and [9] apply |
 | F5 | Transcript pitfall review | Consumer, on checkpoint or completed transcript | [6] [7] [8] | [REQ-OUT-17](01-requirements.md#req-out-17), [REQ-OUT-01](01-requirements.md#req-out-01), [REQ-OUT-06](01-requirements.md#req-out-06), [REQ-OUT-08](01-requirements.md#req-out-08), [REQ-OUT-15](01-requirements.md#req-out-15), [REQ-OUT-16](01-requirements.md#req-out-16) | Selection logs and outcome events only |
 | F6 | Research-agent baseline comparison | Scheduled per task class; on demand; after large memory change | [7] [8] [10] | [REQ-EV-12](01-requirements.md#req-ev-12), [REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09), [REQ-NFR-10](01-requirements.md#req-nfr-10), [AS-08](01-requirements.md#as-08) | Evaluation records in [10]; weakening proposal |
-| F7 | Candidate evaluation in canaries | Unvalidated admission or new version; scheduled canary review | [4] [7] [10] | [REQ-EV-02…06](01-requirements.md#req-ev-02), [REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09), [REQ-ME-10](01-requirements.md#req-me-10), [AS-03](01-requirements.md#as-03) | Utility records in [10]; promote / hold / weaken recommendation |
-| F8 | Skill-candidate gating | Owner requests promotion; gate result arrives | [3] [4] [10] | [REQ-ME-12](01-requirements.md#req-me-12), [REQ-PR-13](01-requirements.md#req-pr-13), [REQ-PR-14](01-requirements.md#req-pr-14), [REQ-EV-08](01-requirements.md#req-ev-08), [OD-08](01-requirements.md#od-08), [AS-06](01-requirements.md#as-06) | Gate results on the candidate; sandbox runs only |
+| F7 | Candidate evaluation in canaries and shadow | Unvalidated admission or new version; candidate enters shadow; scheduled canary review | [4] [7] [10] | [REQ-EV-02…06](01-requirements.md#req-ev-02), [REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09), [REQ-EV-13…16](01-requirements.md#req-ev-13), [REQ-ME-10](01-requirements.md#req-me-10), [AS-03](01-requirements.md#as-03) | Utility records in [10]; promote / hold / weaken recommendation |
+| F8 | Skill-candidate gating | Owner requests promotion; gate result arrives | [3] [4] [10] | [REQ-ME-12](01-requirements.md#req-me-12), [REQ-EV-16](01-requirements.md#req-ev-16), [REQ-EV-17](01-requirements.md#req-ev-17), [REQ-PR-13](01-requirements.md#req-pr-13), [REQ-PR-14](01-requirements.md#req-pr-14), [REQ-EV-08](01-requirements.md#req-ev-08), [OD-08](01-requirements.md#od-08), [AS-06](01-requirements.md#as-06) | Gate results and promotion evidence record on the candidate; sandbox and shadow runs only |
 
 Common rules: no flow writes shared memory directly; changes to [5] are committed by [4], [9], or [10] under their own identities ([REQ-PR-09](01-requirements.md#req-pr-09), [REQ-GOV-04](01-requirements.md#req-gov-04)). Every flow runs under a scoped, least-privilege identity with default-deny egress and approved model endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08), [REQ-SEC-10](01-requirements.md#req-sec-10)). Evidence and memory read by a flow are untrusted input ([REQ-SEC-06](01-requirements.md#req-sec-06)). Flows are idempotent. Every run is logged with inputs, outputs, and identity ([REQ-GOV-05](01-requirements.md#req-gov-05), [REQ-NFR-03](01-requirements.md#req-nfr-03)). A flow may propose a flagged policy candidate but never authors policy ([REQ-GOV-11](01-requirements.md#req-gov-11)).
 
@@ -606,7 +647,7 @@ Exit criteria are tied to acceptance scenarios.
    | additional adapters: tickets, BI, notebooks, query history (REQ-IN-08)     |
    | work-observation recorder adapter with on-device redaction (REQ-IN-09..14) |
    | net value accounting and research-agent baseline  [10]                     |
-   | flows F6 to F8: baseline, canaries, skill gating                           |
+   | flows F6 to F8: baseline, canaries, shadow, skill gating                   |
    +----------------------------------------------------------------------------+
           exit: AS-03, AS-06, AS-07 and AS-08 pass
 ```
@@ -705,7 +746,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative ([§7](#7-canonical-memory-and-retrieval-projections), [REQ-OUT-18](01-requirements.md#req-out-18)).
 - [ ] Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)).
 - [ ] Policies are human-owned and take deterministic precedence everywhere ([REQ-GOV-02](01-requirements.md#req-gov-02), [REQ-GOV-11](01-requirements.md#req-gov-11)).
-- [ ] Utility is measured per version and context; versions never inherit reputation ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04)).
+- [ ] Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04), [REQ-EV-16](01-requirements.md#req-ev-16), [REQ-EV-17](01-requirements.md#req-ev-17)).
 - [ ] Forgetting preserves history; deletion is a separate governed operation ([REQ-ME-08](01-requirements.md#req-me-08)).
 - [ ] Interfaces are harness-neutral ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 - [ ] Reconstructions of observed work are stored beside raw evidence, never instead of it, and are reviewed by the observed employee before they become candidates ([REQ-IN-11](01-requirements.md#req-in-11), [REQ-IN-12](01-requirements.md#req-in-12)).

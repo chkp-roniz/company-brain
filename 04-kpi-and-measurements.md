@@ -132,6 +132,11 @@ Outcome signals are the core of the loop. Each delivered unit version accumulate
 | Repeat-mistake rate | Share of trajectories whose failure matches an already admitted lesson that was available but not delivered or not followed | [3], [10] | task class | Monthly | Memory owner | Downward trend; distinguishes delivery gaps from adoption gaps |
 | Validity score | Per unit: evidence count, source diversity, recency, contradiction status | [5] | unit | Weekly | Memory owner | Informational; reported beside utility, never substituted for it |
 | Canary evaluation throughput | Unvalidated or changed unit versions evaluated in canaries per period; share with a decision (promote, hold, weaken) | F7, [10] | scope | Weekly | Memory owner | No unvalidated unit exposed outside canaries ([REQ-EV-08](01-requirements.md#req-ev-08)) |
+| Shadow coverage | Share of candidate skills, rules, procedures, and material memory-policy changes evaluated in shadow before a promotion decision | F7, [10] | capability class | Monthly | Memory owner | 100% for classes the owner marks as shadow-required ([REQ-EV-13](01-requirements.md#req-ev-13)) |
+| Distinct-context coverage | Per candidate version: distinct representative contexts evaluated, against the threshold for its capability class and risk | [10] | candidate, capability class | Weekly | Memory owner | Informational; repeats of one context count once ([REQ-EV-16](01-requirements.md#req-ev-16)) |
+| Protected-regression count | Protected-task regressions found in shadow; share that blocked promotion | [10], [4] | capability class | Per event | Memory owner | 100% blocked ([REQ-EV-17](01-requirements.md#req-ev-17)) |
+| Candidate disagreement rate | Share of shadow runs where the candidate's output differs from the active path; split by which was right where verified | [10] | candidate, task class | Weekly | Memory owner | Informational; high disagreement with no verified outcomes means more evidence is needed |
+| Promotion evidence sufficiency | Share of promotions whose record states the threshold applied, the reason it fits the risk, the distinct contexts counted, and the protected-task results | [4], [10] | capability class | Monthly | Security reviewer | 100% ([REQ-ME-12](01-requirements.md#req-me-12)) |
 | Decision-lineage completeness | Share of closed trajectories with a decision boundary whose Proposal, Decision, Execution, and Outcome records are all present and linked; missing stages counted per stage | [3], [5] | task class, stage | Weekly | Memory owner | Informational; a low share for one stage points to a capture gap |
 | Verified-outcome coverage | Share of Outcome records that are verified (explicit acceptance criterion applied by a named evaluator) | [10] | task class | Weekly | Memory owner | **Proposal:** ≥ 60% for task classes with a defined acceptance check |
 | Outcome uncertainty distribution | Distribution of recorded uncertainty on Outcome records; share with uncertainty missing | [10] | task class, evaluator type | Monthly | Memory owner | Missing uncertainty is 0%; distribution informational |
@@ -235,7 +240,16 @@ Net value answers "is the Brain worth what it costs?" per task class ([REQ-NFR-1
 2. Outcomes accumulate against the version until the minimum sample for the task class is reached.
 3. The result is a promote, hold, or weaken recommendation to [4] and the owner. The flow never commits the change itself.
 
-### 4.5 Acceptance evidence
+### 4.5 Shadow evaluation
+
+1. A candidate skill, rule, procedure, or material memory-policy change enters shadow under its own scoped identity ([REQ-EV-13](01-requirements.md#req-ev-13), [REQ-EV-14](01-requirements.md#req-ev-14)).
+2. On each matching task, the candidate, the active path, and, where feasible, a no-candidate baseline get the same task identity, evidence set, and deterministic filters. Only the active path controls the result ([REQ-EV-15](01-requirements.md#req-ev-15)).
+3. Each run records applicability, abstention, agreement, execution validity, verified outcome where available, and negative transfer. Runs are grouped by distinct representative context; repeats count once ([REQ-EV-16](01-requirements.md#req-ev-16)).
+4. Protected tasks for the capability class are always run. Any regression blocks promotion ([REQ-EV-17](01-requirements.md#req-ev-17)).
+5. When distinct-context evidence meets the threshold for the capability class, domain, risk, and blast radius, [10] sends a recommendation to [4] and the owner with the full evidence record. The owner decides; [10] never commits the change ([REQ-ME-12](01-requirements.md#req-me-12)).
+6. Threshold values per capability class are **Proposal** until set under [OD-08](01-requirements.md#od-08).
+
+### 4.6 Acceptance evidence
 
 Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-requirements.md#9-acceptance-scenarios) is backed by automated or scripted evidence and by the metrics below.
 
@@ -252,6 +266,7 @@ Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-re
 | [AS-09](01-requirements.md#as-09) Dashboard visibility | Role-based tests show only permitted panels, counts, relations | Dashboard visibility compliance |
 | [AS-10](01-requirements.md#as-10) Decision lineage | Scripted trajectory yields a linked, verified chain; the unselected proposal and the unverified execution are handled correctly | Decision-lineage completeness, verified-outcome coverage |
 | [AS-11](01-requirements.md#as-11) Self-reinforcing model claim | Repeated and summarized assistant claim stays continuity only; grounding blocked until independent evidence | Ineligible-grounding attempts blocked, projection-policy parity |
+| [AS-12](01-requirements.md#as-12) Protected regression | Scripted candidate with better average and one protected failure is blocked; shadow output never reaches production | Protected-regression count, promotion evidence sufficiency, shadow coverage |
 
 ## 5. Phase gates
 
@@ -262,7 +277,7 @@ Which measurements must be live before each phase can exit.
 | Phase 0 | Task classes defined; quality judgment per class; attribution window and method; net value weights, sample size, period; latency target ([OD-06](01-requirements.md#od-06)); retention windows ([OD-07](01-requirements.md#od-07)); admission thresholds ([OD-03](01-requirements.md#od-03)) initial values |
 | Phase 1 | Capture volume, trajectory completeness, candidate yield, evidence link completeness, admission rate and queue age, retrieval latency vs [OD-06](01-requirements.md#od-06), selection size vs budget, empty result rate, selection log completeness, advisory framing compliance, outcome signal coverage, helped / misled / ignored / corrected rates, audit completeness, separation of duties, adapter availability |
 | Phase 2 | Promotion rate and gate compliance, cross-scope leakage (zero), policy precedence violations (zero), contradiction detection and resolution time, deprecation response, projection staleness, pending owner actions, dashboard visibility compliance, retention compliance |
-| Phase 3 | Time to weakening, harmful exposure, canary throughput, Skill Candidate gate status, net value per task class, research-agent baseline result, share of classes with positive net value, repeat-mistake rate, observed-work consent and redaction compliance |
+| Phase 3 | Time to weakening, harmful exposure, canary throughput, shadow coverage, protected-regression count, promotion evidence sufficiency, Skill Candidate gate status, net value per task class, research-agent baseline result, share of classes with positive net value, repeat-mistake rate, observed-work consent and redaction compliance |
 
 ## 6. Dashboard mapping
 

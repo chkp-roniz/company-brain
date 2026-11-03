@@ -44,7 +44,7 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 | [7] | Retrieval and context composer | Deterministic filters, ranking, budgeted selection, L0/L1 composition, selection logging |
 | [8] | Output adapters | Harness hooks, MCP, APIs, UI; deliver in-tool; collect outcome signals |
 | [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback |
-| [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along proposal-to-outcome lineage, update utility per version, trigger weakening, run canaries, net value, baseline |
+| [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along proposal-to-outcome lineage, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline |
 
 ## The ten rules that never bend
 
@@ -55,7 +55,7 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 5. Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
 6. Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed.
 7. Policies are human-owned and take deterministic precedence everywhere.
-8. Utility is measured per version and context; versions never inherit reputation.
+8. Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression.
 9. Forgetting preserves history; deletion is a separate governed operation.
 10. Interfaces are harness-neutral.
 
