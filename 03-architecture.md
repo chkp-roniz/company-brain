@@ -48,7 +48,7 @@ Seven classes stay distinct. Memory objects are derived from evidence and linked
 |---|---|---|---|
 | Evidence event | A source event: message, tool call and result, decision, correction, review, outcome, observation | Immutable | id, time, actor, source system, authorization context, classification, payload reference |
 | Trajectory | Ordered evidence describing one piece of work | Append-only until closed | id, objective, events[], boundaries (completion, failure, correction, decision), outcome |
-| Experience unit | A contextual lesson inferred from one or more trajectories | Versioned | all [REQ-ME-04](01-requirements.md#req-me-04) attributes, usage bounds, lifecycle state |
+| Experience unit | A contextual lesson inferred from one or more trajectories | Versioned | all [REQ-ME-04](01-requirements.md#req-me-04) attributes, usage bounds, lifecycle state, source class, retention / retrieval / grounding decisions ([§2.2](#22-retention-retrieval-and-grounding)) |
 | Durable knowledge | A claim supported across sufficient evidence and contexts | Versioned | as above, plus the set of supporting experience units and contexts |
 | Skill | An executable capability | Versioned, own lifecycle | validation status, rollout state, link to the knowledge it was compiled from |
 | Policy | A human-owned, authoritative constraint | Human-edited only | owner, precedence, scope of application, version |
@@ -96,6 +96,25 @@ Rules:
 - Lineage records are append-only. A correction is a new record linked to the original; nothing is overwritten.
 - Lineage records follow the visibility of their most restrictive evidence ([REQ-GOV-10](01-requirements.md#req-gov-10)).
 
+### 2.2 Retention, retrieval, and grounding
+
+Every managed unit carries three separate decisions ([REQ-ME-15](01-requirements.md#req-me-15)). Storing or finding a unit never makes it trusted.
+
+| Decision | Question | Decided by | Inputs |
+|---|---|---|---|
+| Retention | Is the unit kept? | [4] at admission; lifecycle in [5] | scope, policy, lifecycle state |
+| Retrieval | May it be returned to this consumer? | [7] step 3 | identity, permissions, visibility, scope, validity |
+| Grounding | May it support a factual claim, a recommendation, or a consequential action? | [4] records it; [7] step 3 enforces it | source class, supporting evidence (including verified outcomes, [§2.1](#21-decision-lineage)), authority, validity, freshness, visibility, purpose, task context, policy ([REQ-ME-16](01-requirements.md#req-me-16)) |
+
+Source classes include authoritative reference, policy, tool observation, person statement, verified outcome, and **autobiographical** (assistant-generated beliefs, summaries, self-assessments, prior utterances). Autobiographical units are non-grounding by default ([REQ-ME-17](01-requirements.md#req-me-17)).
+
+Rules:
+
+- The grounding decision and its reason are versioned. A change in grounding eligibility is a new version with the new evidence linked.
+- A unit derived from an autobiographical unit (a summary, a merge, a reconstruction) inherits its non-grounding status unless independent evidence is linked ([REQ-ME-18](01-requirements.md#req-me-18)).
+- Repetition is not corroboration. The count of statements, retrievals, or copies never enters the grounding decision.
+- Grounding eligibility is never higher than the eligibility of the evidence the unit rests on.
+
 ## 3. Logical architecture
 
 Ten components. The write path runs left to right along the top; the read path runs right to left below it; the evaluation loop closes the cycle.
@@ -142,9 +161,9 @@ Ten components. The write path runs left to right along the top; the read path r
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05) |
 | [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…14](01-requirements.md#req-me-01) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…18](01-requirements.md#req-me-01) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
-| [7] | Retrieval and context composer | Objective inference, deterministic filtering, ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…17](01-requirements.md#req-out-01) |
+| [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
 | [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…12](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
@@ -280,10 +299,10 @@ Steps (REQ-OUT-*):
 
 1. Infer the current session objective and constraints from the prompt plus available task and session state (composition per [OD-01](01-requirements.md#od-01)).
 2. Retrieve candidates by semantic, structural, temporal, and scope signals from [6].
-3. Enforce identity, permissions, policy, validity, authority, and explicit resource scope **before** ranking.
+3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, and grounding eligibility **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18)). Units that may be retrieved but not used for grounding stay in the set marked continuity only.
 4. Rank by relevance, confidence, freshness, and demonstrated utility for this version, task class, and harness.
 5. Select the smallest set that fits the declared context budget. An empty set is a legitimate answer.
-6. Present L0 or L1 with source, confidence, and usage boundaries, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16)).
+6. Present L0 or L1 with source, confidence, usage boundaries, and grounding status, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16)). Continuity-only units are marked so that neither a person nor a model cites them as fact.
 7. Allow the consumer to expand to L2 and inspect the underlying evidence.
 8. Record selection details ([REQ-OUT-08](01-requirements.md#req-out-08)) and, later, downstream use and outcome signals ([REQ-EV-10](01-requirements.md#req-ev-10)).
 
@@ -323,6 +342,7 @@ Rules: no new component; the review never writes to [5]; a contradiction it find
 
 - L0 and L1 are derived views of canonical units and MUST be rebuildable from [5] and [2] at any time ([REQ-OUT-10](01-requirements.md#req-out-10)).
 - Every L0 or L1 element carries the identity of its canonical unit so a consumer can always get to L2 and to the evidence.
+- Every L0 or L1 element carries the grounding status of its canonical unit and can never widen it ([REQ-OUT-18](01-requirements.md#req-out-18)).
 - The context budget is spent on L0/L1 by default; L2 is pulled only on request or when the task class requires it.
 
 ## 7. Canonical memory and retrieval projections
@@ -353,6 +373,7 @@ Rules:
 - Probabilistically extracted entities, relationships, summaries, and lessons MUST NOT become authoritative memory merely because they were written to a graph or an index.
 - Projections MAY use graph, vector, textual, relational, or hybrid representations. The representation never changes the governance status of the underlying unit.
 - Every retrieved claim or relationship preserves a path to its managed memory unit and supporting evidence.
+- Every projection entry inherits the retrieval and grounding restrictions of its canonical unit. A projection can never widen grounding rights; when grounding status changes in [5], affected entries are invalidated like any other change ([REQ-OUT-18](01-requirements.md#req-out-18)).
 - When a canonical unit is weakened, superseded, archived, expired, or deleted, every affected projection MUST be invalidated or updated. Projection staleness is a correctness bug, not an optimization problem.
 
 Recommended hybrid store: immutable evidence log + text/vector store + graph + relational lifecycle store. The graph is a projection and a relations layer, never the authority.
@@ -679,9 +700,9 @@ A proposal or implementation that violates any of these is non-compliant regardl
 
 - [ ] The executing agent has no write path to shared memory ([REQ-PR-09](01-requirements.md#req-pr-09)).
 - [ ] No monolithic rewrite of accumulated memory, anywhere ([REQ-ME-09](01-requirements.md#req-me-09)).
-- [ ] Deterministic identity, permission, policy, validity, authority, and scope filters run before ranking ([REQ-OUT-06](01-requirements.md#req-out-06)).
+- [ ] Deterministic identity, permission, policy, validity, authority, scope, and grounding-eligibility filters run before ranking ([REQ-OUT-06](01-requirements.md#req-out-06), [REQ-OUT-18](01-requirements.md#req-out-18)).
 - [ ] Memory reaches the model before it reasons; MCP is exploratory, not the only path ([REQ-OUT-04](01-requirements.md#req-out-04), [REQ-OUT-07](01-requirements.md#req-out-07)).
-- [ ] Projections are derived and invalidated with canonical memory; never authoritative ([§7](#7-canonical-memory-and-retrieval-projections)).
+- [ ] Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative ([§7](#7-canonical-memory-and-retrieval-projections), [REQ-OUT-18](01-requirements.md#req-out-18)).
 - [ ] Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)).
 - [ ] Policies are human-owned and take deterministic precedence everywhere ([REQ-GOV-02](01-requirements.md#req-gov-02), [REQ-GOV-11](01-requirements.md#req-gov-11)).
 - [ ] Utility is measured per version and context; versions never inherit reputation ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04)).
