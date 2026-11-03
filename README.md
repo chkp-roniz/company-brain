@@ -44,7 +44,7 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 | [7] | Retrieval and context composer | Deterministic filters, ranking, budgeted selection, L0/L1 composition, selection logging |
 | [8] | Output adapters | Harness hooks, MCP, APIs, UI; deliver in-tool; collect outcome signals |
 | [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback; managed integrity and authenticity controls; governs which maintenance actions may run automatically |
-| [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along proposal-to-outcome lineage, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline |
+| [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along decision lineage by evidence of influence, not mere exposure, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline |
 
 ## The ten rules that never bend
 
