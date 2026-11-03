@@ -39,11 +39,11 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 | [2] | Evidence and trajectory log | Immutable, append-only audit root for everything derived |
 | [3] | Experience processor | Detect boundaries, reflect, extract, classify, deduplicate, find contradictions; produce candidates |
 | [4] | Admission and promotion service | Validate, handle sensitivity, assign owners, apply scope and policy gates; versioned admission |
-| [5] | Managed memory store | Canonical, versioned, linked, scoped units with lifecycle state; temporary working-memory state, crash-safe continuity checkpoints, and an action journal, kept apart from shared memory; maintained by a governed orchestrator that proposes changes and never silently rewrites |
+| [5] | Managed memory store | Canonical, versioned, linked, scoped units with lifecycle state; temporary working-memory state, crash-safe continuity checkpoints, and an action journal, kept apart from shared memory; maintained by a governed orchestrator that proposes changes, never silently rewrites, commits only on the expected version, and leaves redirects after merges |
 | [6] | Retrieval projections | Derived vector, graph, text, and relational indexes; rebuilt and invalidated from [5] |
 | [7] | Retrieval and context composer | Deterministic filters, ranking, budgeted selection, L0/L1 composition, selection logging |
 | [8] | Output adapters | Harness hooks, MCP, APIs, UI; deliver in-tool; collect outcome signals |
-| [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback; managed integrity and authenticity controls; governs which maintenance actions may run automatically |
+| [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback; managed integrity and authenticity controls; governs which maintenance action classes may run automatically and who owns each; legal holds take precedence over maintenance |
 | [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along decision lineage by evidence of influence, not mere exposure, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline |
 
 ## The ten rules that never bend

@@ -105,6 +105,10 @@ Each table lists: the KPI, how it is computed, the data source, the granularity 
 | Projection repair time | Time from a detected projection inconsistency to repair | Orchestrator, [6] | projection type | Per event | Platform admin | **Proposal:** < 1 hour |
 | Automatic-action rollback rate | Share of automatic maintenance actions rolled back (failed or reversed by an owner) | Orchestrator, [9] | action type | Monthly | Memory owner | Informational; a rising rate puts the action's place on the low-risk list under review |
 | Canonical-rewrite violations | Maintenance changes to [2] or [5] made without an owner decision and outside the low-risk list | [9] audit | — | Continuous | Security reviewer | Zero ([REQ-ME-29](01-requirements.md#req-me-29)) |
+| Stale-action rejections | Maintenance actions and proposals rejected because a unit changed after their expected version; share later re-proposed | Orchestrator, [9] | action class | Weekly | Memory owner | Informational; every rejection is re-evaluated, never forced ([REQ-ME-32](01-requirements.md#req-me-32)) |
+| Maintenance conflicts | Conflicting actions on one unit, duplicate applications of one idempotency key, and class-owner versus unit-owner disagreements | Orchestrator, [9] audit | action class | Weekly | Memory owner | Duplicate applications: zero; conflicts informational ([REQ-ME-32](01-requirements.md#req-me-32), [REQ-ME-34](01-requirements.md#req-me-34)) |
+| Legal-hold violations | Records under legal hold changed, merged away, expired, or deleted by maintenance | [9] audit | — | Continuous | Compliance | Zero ([REQ-ME-33](01-requirements.md#req-me-33)) |
+| Broken-reference count | References (links, dependents, selection logs, evaluation records) that no longer resolve after a merge, supersession, or archival | Orchestrator, [5] | action class | Weekly | Memory owner | Zero ([REQ-ME-35](01-requirements.md#req-me-35)) |
 
 ### 3.5 Delivery (read path)
 
@@ -305,6 +309,7 @@ Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-re
 | [AS-16](01-requirements.md#as-16) Purpose-dependent grounding | Same unit grounds the explanation and is labeled `hypothesis` for the approval; approval fails closed; both decisions logged; no new unit version | Per-request grounding coverage, ceiling breaches, ineligible-grounding attempts blocked |
 | [AS-17](01-requirements.md#as-17) Retrieval-policy shadow | Arms share one comparison basis; selections logged and divergence measured; the message is recorded, not sent; a bypass attempt is blocked and stops the run; condition mismatch is flagged and not counted | Shadow side-effect violations, snapshot parity, selection divergence |
 | [AS-18](01-requirements.md#as-18) Crash mid-task | Process killed by script between journaled intent and result; resumed agent does not repeat the completed action, checks the unfinished one, keeps the constraint; checkpoint age recorded | Checkpoint age, crash-resume success, duplicate irreversible actions |
+| [AS-19](01-requirements.md#as-19) Concurrent maintenance under legal hold | Scripted owner edit between proposal and commit, retried expiry, and a held duplicate; stale proposal rejected, retry applied once, held unit untouched, redirect resolves | Stale-action rejections, maintenance conflicts, legal-hold violations, broken-reference count |
 
 ## 5. Phase gates
 
@@ -314,7 +319,7 @@ Which measurements must be live before each phase can exit.
 |---|---|
 | Phase 0 | Task classes defined; quality judgment per class; attribution window and method; net value weights, sample size, period; latency target ([OD-06](01-requirements.md#od-06)); retention windows ([OD-07](01-requirements.md#od-07)); admission thresholds ([OD-03](01-requirements.md#od-03)) initial values |
 | Phase 1 | Capture volume, trajectory completeness, candidate yield, evidence link completeness, admission rate and queue age, retrieval latency vs [OD-06](01-requirements.md#od-06), selection size vs budget, empty result rate, selection log completeness, advisory framing compliance, outcome signal coverage, helped / misled / ignored / corrected rates, audit completeness, separation of duties, adapter availability |
-| Phase 2 | Promotion rate and gate compliance, cross-scope leakage (zero), policy precedence violations (zero), contradiction detection and resolution time, deprecation response, projection staleness, pending owner actions, dashboard visibility compliance, retention compliance |
+| Phase 2 | Promotion rate and gate compliance, cross-scope leakage (zero), policy precedence violations (zero), legal-hold violations (zero), broken-reference count (zero), contradiction detection and resolution time, deprecation response, projection staleness, pending owner actions, dashboard visibility compliance, retention compliance |
 | Phase 3 | Time to weakening, harmful exposure, canary throughput, shadow coverage, shadow side-effect violations at zero, snapshot parity, protected-regression count, promotion evidence sufficiency, Skill Candidate gate status, net value per task class, research-agent baseline result, share of classes with positive net value, repeat-mistake rate, observed-work consent and redaction compliance |
 
 ## 6. Dashboard mapping
