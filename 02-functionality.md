@@ -157,7 +157,7 @@ Governance applies to every function ([REQ-GOV-01](01-requirements.md#req-gov-01
 | Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback |
 | Output | Who may see and who should receive; policy precedence over local approval; fail closed when permission or policy data is missing |
 | Policy | Human ownership; authenticated changes; deterministic precedence across every interface and execution environment |
-| Integrity | Which records must be attested; managed signing identities; trust roots, rotation, revocation, expiry; quarantine on failed verification |
+| Integrity | Which records must be attested; managed signing identities; trust roots, rotation, revocation, expiry, and compromise times; trusted time source; algorithm retirement dates; quarantine on failed verification |
 
 Key behaviors:
 
@@ -167,7 +167,7 @@ Key behaviors:
 - Maintenance acts automatically only from the owner-approved low-risk list; every other maintenance change is a proposal an owner decides, and every action keeps its prior version and rollback path ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
 - Contradictions are recorded with both sides, their owners, and their evidence, and routed to owners ([REQ-GOV-06](01-requirements.md#req-gov-06)).
 - A unit derived from restricted sources is never visible more widely than its most restrictive source until an owner approves wider visibility ([REQ-GOV-10](01-requirements.md#req-gov-10)).
-- High-impact records (shared memory, policy references, Skill versions, admission decisions, verified outcomes) carry integrity attestations bound to managed identities and organization-managed keys. A record that fails verification is quarantined and never used for grounding or promotion. A valid signature shows who wrote a record and that it is unchanged; it does not make the claim true ([REQ-SEC-16…18](01-requirements.md#req-sec-16)).
+- High-impact records (shared memory, policy references, Skill versions, admission decisions, verified outcomes) carry integrity attestations bound to managed identities and organization-managed keys. A record that fails verification is quarantined and never used for grounding or promotion. A valid signature shows who wrote a record and that it is unchanged; it does not make the claim true. Signatures stay checkable over time: a routine key change does not cast doubt on older records, and only records signed after a key was compromised lose trust. Each signature has a trusted time, and records are signed again before an old algorithm is retired ([REQ-SEC-16…19](01-requirements.md#req-sec-16)).
 - The system never authors or changes policy. It may propose a clearly flagged policy candidate for human approval ([REQ-GOV-11](01-requirements.md#req-gov-11)).
 
 ### 3.6 Evaluation: the feedback loop
