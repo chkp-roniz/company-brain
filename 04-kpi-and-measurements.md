@@ -322,10 +322,10 @@ Which measurements must be live before each phase can exit.
 
 | Phase | Measurements that must be live at exit |
 |---|---|
-| Phase 0 | Task classes defined; quality judgment per class; attribution window and method; net value weights, sample size, period; latency target ([OD-06](01-requirements.md#od-06)); retention windows ([OD-07](01-requirements.md#od-07)); admission thresholds ([OD-03](01-requirements.md#od-03)) initial values |
-| Phase 1 | Capture volume, trajectory completeness, candidate yield, evidence link completeness, admission rate and queue age, retrieval latency vs [OD-06](01-requirements.md#od-06), selection size vs budget, empty result rate, selection log completeness, advisory framing compliance, outcome signal coverage, helped / misled / ignored / corrected rates, audit completeness, separation of duties, adapter availability |
-| Phase 2 | Promotion rate and gate compliance, cross-scope leakage (zero), policy precedence violations (zero), legal-hold violations (zero), broken-reference count (zero), contradiction detection and resolution time, deprecation response, projection staleness, pending owner actions, dashboard visibility compliance, retention compliance |
-| Phase 3 | Time to weakening, harmful exposure, canary throughput, shadow coverage, shadow side-effect violations at zero, snapshot parity, protected-regression count, promotion evidence sufficiency, Skill Candidate gate status, net value per task class, research-agent baseline result, share of classes with positive net value, repeat-mistake rate, observed-work consent and redaction compliance |
+| Phase 0 | Task classes defined; quality judgment per class; attribution window and method; net value weights, sample size, period; latency target ([OD-06](01-requirements.md#od-06)); retention windows ([OD-07](01-requirements.md#od-07)); admission thresholds ([OD-03](01-requirements.md#od-03)) initial values; purpose classes for grounding; recovery point per task class; action-class owners and legal-hold process; trust roots and trusted time source |
+| Phase 1 | Capture volume, trajectory completeness, candidate yield, evidence link completeness, admission rate and queue age, retrieval latency vs [OD-06](01-requirements.md#od-06), selection size vs budget, empty result rate, selection log completeness, advisory framing compliance, outcome signal coverage, helped / misled / ignored / corrected rates, audit completeness, separation of duties, adapter availability, grounding-ceiling coverage, per-request grounding coverage, ceiling breaches (zero), ineligible-grounding attempts blocked, checkpoint completeness, resume success, checkpoint age, crash-resume success, duplicate irreversible actions (zero) |
+| Phase 2 | Promotion rate and gate compliance, cross-scope leakage (zero), policy precedence violations (zero), legal-hold violations (zero), broken-reference count (zero), contradiction detection and resolution time, deprecation response, projection staleness, pending owner actions, dashboard visibility compliance, retention compliance, maintenance backlog and lag, stale-action rejections, canonical-rewrite violations (zero), integrity verification coverage, failed-verification count, time to quarantine, compromise exposure (zero), unverifiable history (zero) |
+| Phase 3 | Time to weakening, harmful exposure, canary throughput, shadow coverage, shadow side-effect violations at zero, snapshot parity, protected-regression count, promotion evidence sufficiency, Skill Candidate gate status, net value per task class, research-agent baseline result, share of classes with positive net value, repeat-mistake rate, observed-work consent and redaction compliance, selection divergence, comparison uncertainty, evidence-supported stage coverage, inferred-stage violations (zero) |
 
 ## 6. Dashboard mapping
 
@@ -338,17 +338,18 @@ The management dashboard ([REQ-NFR-11](01-requirements.md#req-nfr-11)) renders a
 | [C] Relations | Contradiction detection rate, open contradictions, supersessions, cross-scope links, path to evidence |
 | [D] Statistics | Capture volume, admission rate, retrieval latency p50 / p95, selection size vs budget, helped / misled / ignored / corrected rates |
 | [E] Net value | Cost, benefit, and net value per task class, scope, version; research-agent baseline pass / fail |
-| [F] Health and actions | Adapter availability, projection staleness, policy precedence violations, deprecation response, open contradictions, pending owner actions |
+| [F] Health and actions | Adapter availability, projection staleness, policy precedence violations, deprecation response, open contradictions, pending owner actions, maintenance backlog and lag, stale-action rejections, legal-hold violations, broken-reference count |
+| [G] Trust and learning | Grounding-ceiling coverage, per-request grounding coverage, ceiling breaches; resume success, crash-resume success, checkpoint age; shadow coverage, promotion evidence sufficiency, shadow side-effect violations; failed-verification count, time to quarantine, compromise exposure, unverifiable history |
 
 ## 7. Reporting cadence and reviews
 
 | Cadence | Audience | Content |
 |---|---|---|
-| Continuous | Platform admin, security reviewer | Availability, latency, staleness, fail-closed events, leakage and precedence alerts |
+| Continuous | Platform admin, security reviewer, compliance | Availability, latency, staleness, fail-closed events, leakage and precedence alerts, ceiling breaches, shadow side-effect violations, legal-hold violations, failed verifications, compromise exposure |
 | Daily | Memory owners, platform admin | Queues and backlogs, admission activity, completeness checks |
-| Weekly | Memory owners | Outcome signals per unit version, weakening candidates, contradiction and deprecation items, capture and delivery trends |
-| Monthly | Memory owners, product owner | Net value per task class, cost share, promotion and lifecycle summary, governance and retention compliance |
-| Quarterly | Product owner, security and compliance, policy owners | Research-agent baseline results, share of classes with positive net value, recovery drills, threshold and weight review, acceptance scenario re-runs |
+| Weekly | Memory owners | Outcome signals per unit version, weakening candidates, contradiction and deprecation items, capture and delivery trends, resume and crash-resume results, maintenance backlog and stale-action rejections, shadow decisions pending |
+| Monthly | Memory owners, product owner, security reviewer | Net value per task class, cost share, promotion and lifecycle summary, governance and retention compliance, automatic-action rollback rate, key rotation and algorithm migration |
+| Quarterly | Product owner, security and compliance, policy owners | Research-agent baseline results, share of classes with positive net value, recovery drills, threshold and weight review, acceptance scenario re-runs, protected-task sets per capability class, low-risk maintenance action list and action-class owners, recovery points, trust-root health (rotation, compromise drills, unverifiable history) |
 
 Every threshold marked Proposal is reviewed at the quarterly review against observed distributions and adjusted by the owner.
 
