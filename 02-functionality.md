@@ -69,6 +69,7 @@ Processing also:
 - normalizes and classifies sensitive content before anything is considered for admission ([REQ-PR-10](01-requirements.md#req-pr-10))
 - generalizes recorded procedures by intent toward native tools (CLIs, APIs, connectors) instead of click replay, and marks the steps that stay UI-bound ([REQ-PR-13](01-requirements.md#req-pr-13))
 - classifies every artifact from observed work as an Experience unit or a Skill Candidate, never as a Skill, durable knowledge, or policy ([REQ-PR-14](01-requirements.md#req-pr-14))
+- links what was proposed, what was decided, what was executed, and what resulted into a decision-lineage chain, one stage at a time and only as far as the evidence goes ([REQ-PR-15](01-requirements.md#req-pr-15))
 
 The executing agent proposes nothing to shared memory and writes nothing to it. Reflection, curation, and admission are separate roles with separate identities ([REQ-PR-09](01-requirements.md#req-pr-09)).
 
@@ -166,7 +167,8 @@ What the loop does:
 - treats every unit as a hypothesis proven by outcomes, not by confidence, retrieval frequency, or popularity ([REQ-EV-02](01-requirements.md#req-ev-02))
 - scopes utility to version, task class, audience, model, harness, and context ([REQ-EV-03](01-requirements.md#req-ev-03))
 - never lets a new version inherit the reputation of the previous one ([REQ-EV-04](01-requirements.md#req-ev-04))
-- attributes outcomes rather than crediting or blaming every supplied unit ([REQ-EV-06](01-requirements.md#req-ev-06))
+- attributes outcomes rather than crediting or blaming every supplied unit ([REQ-EV-06](01-requirements.md#req-ev-06)), following the decision-lineage chain where one exists
+- counts an outcome as verified only when an explicit acceptance criterion was checked by a named evaluator; a successful execution alone is not a verified outcome ([REQ-ME-14](01-requirements.md#req-me-14))
 - weakens or suspends a version when harmful signals accumulate ([AS-03](01-requirements.md#as-03))
 - tests unvalidated units only in safe environments or canaries and never weakens policy or security controls to do so ([REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09))
 - computes **net value** per task class: outcome benefit minus the cost of the write path, injected context, and retrieval ([REQ-NFR-10](01-requirements.md#req-nfr-10))
@@ -271,6 +273,15 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 
 1. An owner opens the management dashboard and sees only what their identity may see: admission queue, pending promotions, open contradictions, deprecation notices, net value per task class.
 2. They approve a promotion, resolve a contradiction, or roll back a change. Each action opens the matching admission or governance workflow under their identity and is audited. The dashboard itself commits nothing.
+
+### 6.9 A suggestion, a different decision, a verified result (AS-10)
+
+1. An agent, using a delivered lesson, proposes fix A. The engineer reviews it and selects fix B instead.
+2. Fix B is deployed. The deployment succeeds, but nothing has yet checked that the problem is gone. This is an Execution, not a verified outcome.
+3. The next day the test that defines "fixed" passes. The Outcome is recorded as verified, with the evaluator, the acceptance criterion, the time, and the uncertainty.
+4. The chain is linked: Proposal A (agent, informed by the lesson) → Decision B (engineer, under their authority) → Execution → verified Outcome. Proposal A stays in history and is never shown as the decision taken.
+5. Evaluation credits the outcome to Decision B. The lesson behind Proposal A gets no credit for a result it did not produce; the override is kept as a signal for its owner.
+6. A week later a regression shows fix B was incomplete. The correction is linked to the original Outcome, which is kept, not overwritten.
 
 ## 7. Agentic flows
 

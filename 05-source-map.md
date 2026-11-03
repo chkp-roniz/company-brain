@@ -85,7 +85,7 @@ In the tables below the `SRC-` prefix is dropped where space is short (`A01` = `
 
 | ID | Source | Label | Pillar | Contributes | Maps to |
 |---|---|---|---|---|---|
-| SRC-I01 | [Project Lucca](https://github.com/AlienatedAliens/ProjectLucca) | Direct | R F | Retention vs grounding eligibility; autobiographical memory is not truth; proposal → decision → outcome records; shadow, replay, regression, approval gates before rule promotion | [REQ-IN-06](01-requirements.md#req-in-06), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-EV-08](01-requirements.md#req-ev-08), [OD-08](01-requirements.md#od-08) |
+| SRC-I01 | [Project Lucca](https://github.com/AlienatedAliens/ProjectLucca) | Direct | R F | Retention vs grounding eligibility; autobiographical memory is not truth; proposal → decision → outcome records; shadow, replay, regression, approval gates before rule promotion | [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-EV-08](01-requirements.md#req-ev-08), [AS-10](01-requirements.md#as-10), [OD-08](01-requirements.md#od-08); [03](03-architecture.md) [§2.1](03-architecture.md#21-decision-lineage) |
 | SRC-I02 | [Microsoft Skill Recorder](https://github.com/microsoft/skill-recorder) | Direct | R F A | Observed-work capture; evidence separate from reconstruction; employee review; privacy controls; one recording → candidate, not skill | [REQ-IN-09…14](01-requirements.md#req-in-09), [REQ-PR-13](01-requirements.md#req-pr-13), [REQ-PR-14](01-requirements.md#req-pr-14), [REQ-ME-12](01-requirements.md#req-me-12), [AS-06](01-requirements.md#as-06); [02](02-functionality.md) [§6.6](02-functionality.md#66-observed-work-becomes-a-skill-candidate-as-06); [03](03-architecture.md) [§4.1](03-architecture.md#41-observed-work-capture), [§16.6](03-architecture.md#166-building-blocks-not-a-brain) |
 | SRC-I03 | [PM Brain](https://github.com/phuryn/pm-brain) | Supporting | F A | Source → ingestion → durable-knowledge split; hypothesis vs decision; reconsideration conditions; role packs over a generic core | [REQ-PR-03](01-requirements.md#req-pr-03), [REQ-ME-02](01-requirements.md#req-me-02), [REQ-SC-01](01-requirements.md#req-sc-01), [REQ-IN-16](01-requirements.md#req-in-16) |
 | SRC-I04 | [Company Brain Azure](https://github.com/roy2392/company-brain-azure) | Reviewed | A | Broad reference; exposes the gap to ACL-aware retrieval, continuous ingestion, governed memory, evaluation, recovery | [01](01-requirements.md) [§2](01-requirements.md#2-non-goals); [REQ-OUT-06](01-requirements.md#req-out-06), [REQ-IN-04](01-requirements.md#req-in-04), [REQ-EV-01](01-requirements.md#req-ev-01), [REQ-NFR-02](01-requirements.md#req-nfr-02) |
@@ -127,8 +127,8 @@ Reverse index: requirement area → sources that shaped it.
 | Input — capture | [REQ-IN-01…08](01-requirements.md#req-in-01) | `[1]` `[2]` | [02](02-functionality.md) [§3.1](02-functionality.md#31-input-capture) | F03, A02, A04, I01, I11, P06 |
 | Input — observed work | [REQ-IN-09…14](01-requirements.md#req-in-09) | `[1]` `[2]` | [02](02-functionality.md) [§6.6](02-functionality.md#66-observed-work-becomes-a-skill-candidate-as-06) | I02, A02, A04 |
 | Input — sources and portability | [REQ-IN-15…16](01-requirements.md#req-in-15) | `[1]` `[4]` | [02](02-functionality.md) [§3.1](02-functionality.md#31-input-capture) | A16, I15, I08, P04 ([IN-15](01-requirements.md#req-in-15)) · I03, I10, P02 ([IN-16](01-requirements.md#req-in-16)) |
-| Processing | [REQ-PR-01…14](01-requirements.md#req-pr-01) | `[3]` | [02](02-functionality.md) [§3.2](02-functionality.md#32-processing-reflection-and-extraction) | A01, A03, A07, A13, I02, I03, I10, I12 |
-| Memory | [REQ-ME-01…13](01-requirements.md#req-me-01) | `[4]` `[5]` | [02](02-functionality.md) [§3.3](02-functionality.md#33-memory-governed-retention), [§5](02-functionality.md#5-memory-lifecycle-functional-view) | F01, F02, F03, F04, A01, A05, A06, A16, A17, I01, I02, I15, P05, P07 |
+| Processing | [REQ-PR-01…15](01-requirements.md#req-pr-01) | `[3]` | [02](02-functionality.md) [§3.2](02-functionality.md#32-processing-reflection-and-extraction) | A01, A03, A07, A13, I01, I02, I03, I10, I12 |
+| Memory | [REQ-ME-01…14](01-requirements.md#req-me-01) | `[4]` `[5]` | [02](02-functionality.md) [§3.3](02-functionality.md#33-memory-governed-retention), [§5](02-functionality.md#5-memory-lifecycle-functional-view) | F01, F02, F03, F04, A01, A05, A06, A16, A17, I01, I02, I15, P05, P07 |
 | Evaluation | [REQ-EV-01…12](01-requirements.md#req-ev-01) | `[10]` | [02](02-functionality.md) [§3.6](02-functionality.md#36-evaluation-the-feedback-loop) | A09, A10, A11, A12, A13, A14, F02, I01, P07 |
 | Output — delivery | [REQ-OUT-01…17](01-requirements.md#req-out-01) | `[6]` `[7]` `[8]` | [02](02-functionality.md) [§3.4](02-functionality.md#34-output-context-delivery) | A06, A07, A15, A16, I07, I08, I09, I13, F04, P07 |
 | Scope and promotion | [REQ-SC-01…06](01-requirements.md#req-sc-01) | `[4]` | [02](02-functionality.md) [§4](02-functionality.md#4-scope-and-promotion) | F02, F03, F04, I03, P02 |
@@ -150,6 +150,7 @@ Reverse index: requirement area → sources that shaped it.
 | [AS-07](01-requirements.md#as-07) | Net value accounting | A12, A11 |
 | [AS-08](01-requirements.md#as-08) | Research-agent baseline | A13 |
 | [AS-09](01-requirements.md#as-09) | Management dashboard visibility | No external source |
+| [AS-10](01-requirements.md#as-10) | Decision lineage | I01 |
 | [OD-02](01-requirements.md#od-02) | Minimum experience-unit schema | A03 |
 | [OD-03](01-requirements.md#od-03) | Admission thresholds | A17 |
 | [OD-08](01-requirements.md#od-08) | Skill compilation and promotion | A05, I01 |
@@ -171,6 +172,7 @@ Quick lookup for the design ideas that recur across the documents.
 | Deprecation as a lifecycle trigger | [REQ-ME-13](01-requirements.md#req-me-13) | A16, F02 |
 | Utility ≠ validity, per version | [REQ-EV-01…04](01-requirements.md#req-ev-01) | A09, A11, A14 |
 | Failure attribution | [REQ-EV-06](01-requirements.md#req-ev-06) | A10 |
+| Decision lineage and verified outcomes | [REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14); [03](03-architecture.md) [§2.1](03-architecture.md#21-decision-lineage) | I01 |
 | Net value and no-memory baseline | [REQ-NFR-10](01-requirements.md#req-nfr-10), [REQ-EV-12](01-requirements.md#req-ev-12); [04](04-kpi-and-measurements.md) [§3.7](04-kpi-and-measurements.md#37-net-value), [§4.2–4.3](04-kpi-and-measurements.md#42-net-value-ab-or-paired-protocol) | A12, A13, A11 |
 | Minimum sufficient context | [REQ-OUT-01](01-requirements.md#req-out-01) | A15, A06 |
 | Proactive delivery before reasoning | [REQ-OUT-04…05](01-requirements.md#req-out-04) | I13 |

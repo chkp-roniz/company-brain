@@ -54,9 +54,47 @@ Seven classes stay distinct. Memory objects are derived from evidence and linked
 | Policy | A human-owned, authoritative constraint | Human-edited only | owner, precedence, scope of application, version |
 | Authoritative reference | Pointer to the official source of truth | Reference | system, locator, last verified |
 
-Related derived objects: a **Reconstruction** (interpretation of observed work, linked step by step to evidence); a **Skill Candidate** (a generalized procedure that has not passed the [REQ-ME-12](01-requirements.md#req-me-12) gates); a **code-graph entity or relation** (tagged with repository, commit, and builder version).
+Related derived objects: a **Reconstruction** (interpretation of observed work, linked step by step to evidence); a **Skill Candidate** (a generalized procedure that has not passed the [REQ-ME-12](01-requirements.md#req-me-12) gates); a **code-graph entity or relation** (tagged with repository, commit, and builder version); **decision-lineage records** (Proposal, Decision, Execution, Outcome; [§2.1](#21-decision-lineage)).
 
-Required relationships: `derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`. Relationships are typed, directional, versioned, and carry provenance and confidence.
+Required relationships: `derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`, and the decision-lineage links in [§2.1](#21-decision-lineage). Relationships are typed, directional, versioned, and carry provenance and confidence.
+
+### 2.1 Decision lineage
+
+A trajectory records decisions and outcomes as evidence events. Decision lineage turns them into linked records, so the Brain can tell what was suggested, what an authorized actor chose, what actually ran, and what was later verified ([REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14)).
+
+```
+   person / agent / memory unit versions
+          | proposed_by
+          v
+   +------------+ selected_by +------------+ executed_as +------------+ resulted_in +------------+
+   | Proposal   |------------>| Decision   |------------>| Execution  |------------>| Outcome    |
+   | what was   |             | what an    |             | what       |             | what was   |
+   | suggested  |             | authorized |             | actually   |             | observed   |
+   +------------+             | actor chose|             | ran        |             +-----+------+
+   not selected: kept in      +------------+             +------------+                   |
+   history, never shown as                                                   evaluated_by |
+   the decision taken                                                                     v
+                                          evaluator + acceptance criterion + uncertainty
+                                          criterion checked --> VERIFIED OUTCOME
+                                          no criterion      --> unverified observation
+
+   every record: actor . authority . timestamp . evidence links
+   a correction is a new linked record; the original is never overwritten
+```
+
+| Record | Created by | Required attributes |
+|---|---|---|
+| Proposal | [3], at a decision boundary | proposer (person, agent, or the memory unit versions that informed it), content, time, evidence |
+| Decision | [3], at a decision boundary | selecting actor, authority, the proposal selected (if any), time, evidence |
+| Execution | [3], from tool calls and results | executing identity, what ran, time, evidence |
+| Outcome | [10], from later evidence | evaluator, acceptance criterion, result, uncertainty, verified flag, time, evidence |
+
+Rules:
+
+- A record is created only when evidence supports its stage. Missing stages stay unknown; the chain is never completed by inference.
+- An Outcome is verified only when an evaluator applied an explicit acceptance criterion. A positive signal without one is an unverified observation.
+- Lineage records are append-only. A correction is a new record linked to the original; nothing is overwritten.
+- Lineage records follow the visibility of their most restrictive evidence ([REQ-GOV-10](01-requirements.md#req-gov-10)).
 
 ## 3. Logical architecture
 
@@ -102,14 +140,14 @@ Ten components. The write path runs left to right along the top; the read path r
 |---|---|---|---|---|
 | [1] | Source adapters | Connect systems of record and work surfaces; emit normalized evidence events carrying identity, time, source, and authorization context. Includes harness exporters, repository, ticket, document, and database connectors, the code-graph adapter, the memory import adapter, and the work-observation recorder | Write-once ingest API into [2] | [REQ-IN-01…16](01-requirements.md#req-in-01), [REQ-GOV-03](01-requirements.md#req-gov-03) |
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05) |
-| [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…14](01-requirements.md#req-pr-01) |
+| [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…13](01-requirements.md#req-me-01) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…14](01-requirements.md#req-me-01) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering, ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…17](01-requirements.md#req-out-01) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
-| [10] | Evaluation loop | Join selection logs with outcomes; attribute; update utility per version; trigger weakening or suspension; manage safe canaries; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…12](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
+| [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…12](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 
@@ -150,6 +188,7 @@ Design rules:
 
 - The executing agent has no credential that can write to [5]. Reflection and curation run as separate services with their own scoped identities ([REQ-PR-09](01-requirements.md#req-pr-09), [REQ-SEC-10](01-requirements.md#req-sec-10)).
 - Candidates are idempotent: re-processing the same trajectory produces the same candidate identity, so retries never duplicate memory.
+- At a decision boundary, [3] creates or extends the decision-lineage chain ([§2.1](#21-decision-lineage)); lineage records pass admission like any other candidate. Outcome and verification records from [10] enter [2] as new evidence first.
 - Admission writes are versioned deltas. There is no code path that rewrites the whole store or a whole scope with a single model call.
 - Every admitted unit records the admission rule and actor that let it in, so an admission rule can later be found and rolled back.
 - Imported memory ([REQ-IN-16](01-requirements.md#req-in-16)) enters at step 1 through a source adapter, keeps its original provenance, and passes steps 2 to 9 like any other input.
@@ -387,7 +426,8 @@ For every run the loop records: the complete set of units supplied (ids and vers
 What the loop does:
 
 - updates utility history on each supplied unit version, scoped to task class, audience, model, harness, and context ([REQ-EV-03](01-requirements.md#req-ev-03))
-- applies attribution rather than crediting or blaming every supplied unit for the whole outcome ([REQ-EV-06](01-requirements.md#req-ev-06))
+- applies attribution rather than crediting or blaming every supplied unit for the whole outcome ([REQ-EV-06](01-requirements.md#req-ev-06)); where a decision-lineage chain exists, follows it from the Outcome through the Execution and Decision to the Proposal and the unit versions that informed it ([§2.1](#21-decision-lineage))
+- verifies an outcome only against an explicit acceptance criterion and records the evaluator and uncertainty; a positive signal without a criterion stays an unverified observation and counts as weaker evidence ([REQ-ME-14](01-requirements.md#req-me-14))
 - triggers weakening or suspension when harmful signals accumulate against a version ([AS-03](01-requirements.md#as-03))
 - never lets a new or materially changed version inherit its predecessor's utility ([REQ-EV-04](01-requirements.md#req-ev-04))
 - runs evaluation of unvalidated units only in safe environments, canaries, or low-risk tasks, and never weakens mandatory policy or security controls to do so ([REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09))

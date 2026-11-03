@@ -129,6 +129,9 @@ Outcome signals are the core of the loop. Each delivered unit version accumulate
 | Repeat-mistake rate | Share of trajectories whose failure matches an already admitted lesson that was available but not delivered or not followed | [3], [10] | task class | Monthly | Memory owner | Downward trend; distinguishes delivery gaps from adoption gaps |
 | Validity score | Per unit: evidence count, source diversity, recency, contradiction status | [5] | unit | Weekly | Memory owner | Informational; reported beside utility, never substituted for it |
 | Canary evaluation throughput | Unvalidated or changed unit versions evaluated in canaries per period; share with a decision (promote, hold, weaken) | F7, [10] | scope | Weekly | Memory owner | No unvalidated unit exposed outside canaries ([REQ-EV-08](01-requirements.md#req-ev-08)) |
+| Decision-lineage completeness | Share of closed trajectories with a decision boundary whose Proposal, Decision, Execution, and Outcome records are all present and linked; missing stages counted per stage | [3], [5] | task class, stage | Weekly | Memory owner | Informational; a low share for one stage points to a capture gap |
+| Verified-outcome coverage | Share of Outcome records that are verified (explicit acceptance criterion applied by a named evaluator) | [10] | task class | Weekly | Memory owner | **Proposal:** ≥ 60% for task classes with a defined acceptance check |
+| Outcome uncertainty distribution | Distribution of recorded uncertainty on Outcome records; share with uncertainty missing | [10] | task class, evaluator type | Monthly | Memory owner | Missing uncertainty is 0%; distribution informational |
 | Skill Candidate gate status | For each Skill Candidate: gates passed of six; sandbox outcomes; time in candidate state | F8, [10] | candidate | Monthly | Memory owner | No candidate executes in production before all six gates pass |
 
 ### 3.7 Net value
@@ -201,7 +204,8 @@ Net value answers "is the Brain worth what it costs?" per task class ([REQ-NFR-1
 3. Implicit signals are derived from later evidence in the same trajectory: retries, reverts, failed checks, corrections. Explicit signals come from the tool interface ([REQ-EV-11](01-requirements.md#req-ev-11)).
 4. An **attribution window** per task class (Phase 0 deliverable) bounds how long after injection a signal may be linked to it.
 5. Attribution assigns signals to specific units, not to the whole set. The initial method should at least: link a correction or revert to the unit whose bounds cover the corrected point; treat units never referenced as ignored; split unattributable positive outcomes as weak evidence across supplied units rather than full credit to each ([REQ-EV-06](01-requirements.md#req-ev-06)). The attribution design is a Phase 0 deliverable and a known hard problem.
-6. Signals update the utility history of the exact unit version only ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04)).
+6. Where a decision-lineage chain exists ([REQ-ME-14](01-requirements.md#req-me-14)), attribution follows it: a signal on an Outcome is linked through the Execution and the Decision to the Proposal and the unit versions that informed it. A proposal that was not selected gets no credit for the outcome of the decision taken. A verified outcome is stronger evidence than an unverified observation.
+7. Signals update the utility history of the exact unit version only ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04)).
 
 ### 4.2 Net value: A/B or paired protocol
 
@@ -243,6 +247,7 @@ Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-re
 | [AS-07](01-requirements.md#as-07) Net value accounting | Cost and benefit reported separately per class, scope, version | Net value per task class, quality-adjusted result |
 | [AS-08](01-requirements.md#as-08) Research-agent baseline | Pass or fail per class with evidence kept | Research-agent baseline result |
 | [AS-09](01-requirements.md#as-09) Dashboard visibility | Role-based tests show only permitted panels, counts, relations | Dashboard visibility compliance |
+| [AS-10](01-requirements.md#as-10) Decision lineage | Scripted trajectory yields a linked, verified chain; the unselected proposal and the unverified execution are handled correctly | Decision-lineage completeness, verified-outcome coverage |
 
 ## 5. Phase gates
 
