@@ -1,0 +1,408 @@
+# Company Brain — Requirements
+
+**Normative.** This document states what a Company Brain must do. It is written for any organization that wants to build one. It contains no organization-specific names, hosts, or data.
+
+Conventions:
+
+- **MUST / MUST NOT / SHOULD / MAY** follow RFC 2119.
+- Requirement IDs are stable: `REQ-<AREA>-<nn>`. Areas: `OBJ` objective, `IN` input, `PR` processing, `ME` memory, `EV` evaluation, `OUT` output, `SC` scope and promotion, `GOV` governance, `SEC` security, `NFR` non-functional. Acceptance scenarios: `AS-nn`. Open decisions: `OD-nn`.
+- Component numbers `[1]`–`[10]` refer to the logical architecture in [03-architecture.md](03-architecture.md) [§3](03-architecture.md#3-logical-architecture).
+- Diagrams are plain ASCII. Read them in a monospace font.
+
+Related documents: [02-functionality.md](02-functionality.md) (how the system behaves), [03-architecture.md](03-architecture.md) (how it is built), [04-kpi-and-measurements.md](04-kpi-and-measurements.md) (how it is measured).
+
+## 1. Objective
+
+| ID | Requirement |
+|---|---|
+| <a id="req-obj-01"></a>REQ-OBJ-01 | The system MUST capture experience created during real work, convert it into governed memory units, and deliver the minimum sufficient context to the right person or agent at the right moment. |
+| <a id="req-obj-02"></a>REQ-OBJ-02 | The system distributes **experience** (how outcomes were reached and what was learned), not merely documents. Making existing documents searchable does not satisfy this objective. |
+
+```
+   +-------------------------------------+     +-------------------------------------+
+   |  ORGANIZATIONAL KNOWLEDGE           |     |  ORGANIZATIONAL EXPERIENCE          |
+   |  what the organization knows or     |     |  what the organization learned on   |
+   |  has already decided                |     |  the way to the result              |
+   |                                     |     |                                     |
+   |  documents, databases, code,        |     |  what was tried, what failed, what  |
+   |  tickets, procedures, policies      |     |  was fixed, why a decision changed, |
+   |  kept by systems of record          |     |  which exception appeared, what     |
+   |                                     |     |  worked only in one context         |
+   |  = the RESULT                       |     |  = the PATH to the result           |
+   +-------------------------------------+     +-------------------------------------+
+   a warehouse makes this searchable           the Company Brain must also remember this
+```
+
+## 2. Non-goals
+
+The system is **not**:
+
+- a connector layer over enterprise documents
+- a single vector database containing all organizational content
+- a chat interface over systems of record
+- a mechanism that injects the entire "company brain" into every prompt
+- an autonomous policy author
+- a replacement for authoritative source systems
+- tied to one model, agent, or harness
+
+A proposal that satisfies the requirements by building one of the above has misread them.
+
+## 3. Functional model
+
+Four functions. Governance is a cross-cutting control plane, not a fifth step. What happens after output returns as new input.
+
+```
+               +---------------------------------------------------------+
+               | GOVERNANCE CONTROL PLANE (cross-cutting; not a 5th step)|
+               | identity . permissions . policy precedence . audit trail|
+               | expiry . deletion . rollback . scope control            |
+               +----+---------------+---------------+--------------+-----+
+                    |               |               |              |
+                    v               v               v              v
+ work trails   +----------+   +------------+   +----------+   +----------+   minimum sufficient
+ systems of -->|  INPUT   |-->| PROCESSING |-->|  MEMORY  |-->|  OUTPUT  |--> context to the right
+ record        +----------+   +------------+   +----------+   +----------+   person or agent, in-tool
+                    ^                                              |
+                    |          outcome of the output               |
+                    |   (helped / misled / ignored / corrected)    |
+                    +-------------  returns as new input  ---------+
+```
+
+| Function or concern | One-line responsibility | Components |
+|---|---|---|
+| Input | Capture official knowledge and work trails as immutable evidence and trajectories | [1] [2] |
+| Processing | Turn trajectories into candidate experience units with evidence links and usage bounds | [3] |
+| Memory | Decide what to retain, in what form, for how long, for whom, and when to stop trusting it | [4] [5] |
+| Output | Deliver the smallest useful set of memory, in-tool, before the model reasons, with provenance | [6] [7] [8] |
+| Governance | Identity, permissions, policy precedence, audit, expiry, rollback across all four | [9] |
+| Evaluation | Connect delivered memory to observed outcomes; feed back as input | [10] |
+
+## 4. Actors
+
+| Actor | Role in the system |
+|---|---|
+| Worker (engineer, analyst, researcher) | Produces work trails as a by-product of normal work; receives context inside their tools; may own personal-scope memory. |
+| AI agent / automation | Produces trajectories; consumes injected context; may explore memory through tools; never writes shared memory directly. |
+| Memory owner | Accountable for a memory unit or a scope (team, product, organization); approves scope changes; resolves contradictions. |
+| Policy owner | Human owner of policy objects. The only actor who may change policy. |
+| Platform administrator | Operates adapters, admission rules, retention defaults, audit, and rollback. |
+| Security / compliance reviewer | Audits provenance, access, and leakage controls. |
+
+## 5. Functional requirements
+
+### 5.1 Input — capture (components [1], [2])
+
+The unit of capture is a trajectory, not a document and not a session summary.
+
+```
+  +---------+    +---------+    +---------+    +------------+    +---------+
+  | problem |--->| attempt |--->| mistake |--->| correction |--->| outcome |
+  +---------+    +---------+    +---------+    +------------+    +---------+
+       |              |              |               |                |
+       +--------------+--------------+---------------+----------------+
+                                     |
+                      one TRAJECTORY = an ordered sequence of evidence events
+                      (the unit of capture; stored immutably; never rewritten)
+```
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-in-01"></a>REQ-IN-01 | MUST | Ingest official knowledge from systems of record: documents, databases, code, tickets, procedures, and policies. |
+| <a id="req-in-02"></a>REQ-IN-02 | MUST | Ingest work trails: agent and coding-tool sessions, conversations, user corrections and feedback, tool calls and their results, code reviews, decisions and changes of direction, failed attempts, retries, and actual outcomes. |
+| <a id="req-in-03"></a>REQ-IN-03 | MUST | Capture trajectories (problem → attempt → mistake → correction → outcome), preserving event order, timestamps, actor identity, and the links between events of the same piece of work. |
+| <a id="req-in-04"></a>REQ-IN-04 | SHOULD | Capture passively, as a by-product of the tools in which work already happens. |
+| <a id="req-in-05"></a>REQ-IN-05 | MUST NOT | Depend on employees maintaining another knowledge repository, writing post-hoc documentation, or tagging content in order for the system to learn. |
+| <a id="req-in-06"></a>REQ-IN-06 | MUST | Store captured material as immutable evidence in [2]. Evidence becomes a managed memory unit only after processing and admission; capture alone never creates memory. |
+| <a id="req-in-07"></a>REQ-IN-07 | MUST | Capture only what the owning identity and applicable policy permit ([REQ-GOV-03](#req-gov-03)), and record what was captured, from where, and under which authorization. |
+| <a id="req-in-08"></a>REQ-IN-08 | SHOULD | Be extensible by adapter to work surfaces beyond software development: query history, notebooks, BI tools and dashboard changes, research tools, analyst and researcher agent sessions. Experience created in ad hoc analytical work must not be lost. |
+
+#### 5.1.1 Principles for observed work
+
+Observation-based capture (a harness recording an agent session, or a recorder observing an employee's screen, terminal, and narration) is the richest input the system has and the most sensitive. These principles apply to every observation-based adapter, from the first harness hooks to a screen-level recorder.
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-in-09"></a>REQ-IN-09 | MUST | Observe real work rather than rely on employees to document it from memory. Where a surface can be observed (screen, window and application switches, pages visited, clipboard previews, terminal commands and output, tool calls and results, optional spoken narration), capture the observation as evidence. Recording is visible to the observed employee, who can pause, stop, or discard a session at any time. |
+| <a id="req-in-10"></a>REQ-IN-10 | MUST | Reconstruct intent and ordered steps from several evidence sources combined, not from a single stream. Every reconstructed step records which evidence events support it and from which sources. A step with no supporting evidence is marked as inferred. |
+| <a id="req-in-11"></a>REQ-IN-11 | MUST | Keep raw evidence separate from its interpretation. The reconstruction (intent plus steps) is an interpretation object stored beside the evidence and linked to it. It never replaces, edits, or summarizes away the raw evidence, which stays available for inspection (L2). |
+| <a id="req-in-12"></a>REQ-IN-12 | MUST | Let the observed employee review the reconstruction before it becomes a candidate: correct steps, redact content, or reject the session. The review decision and edits are recorded as evidence events. Review is neither admission, nor policy clearance, nor a security guarantee. |
+| <a id="req-in-13"></a>REQ-IN-13 | MUST | Build privacy, provenance, verification, and outcome feedback into the capture pipeline itself: (a) notice to the employee before every recording and employee control over the session; (b) on-device detection and redaction of secrets and personal data before anything leaves the workstation; (c) provenance stamps (actor, time, source, authorization) on every event; (d) recorded verification results (which checks ran on the reconstruction and what they found); (e) an outcome channel that links later results back to the capture ([REQ-EV-10](#req-ev-10)). None of these may be added after the fact. |
+| <a id="req-in-14"></a>REQ-IN-14 | MUST | Keep observed-work data inside organization-controlled systems. Reconstruction and any model-based analysis run only through approved endpoints ([REQ-SEC-08](#req-sec-08), [REQ-SEC-09](#req-sec-09)). Recording data is never sent to a third-party cloud for analysis. Rollout beyond consenting pilot users is subject to the organization's privacy and legal review for monitoring of employee activity. |
+
+#### 5.1.2 Sources and portability
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-in-15"></a>REQ-IN-15 | MUST | Treat code graphs (symbols, call and dependency relations, ownership, and version history derived from repositories) as a system-of-record source alongside the code itself ([REQ-IN-01](#req-in-01)). Every entity and relation taken from a code graph records the repository, commit, and graph-builder version it came from, so it can be re-derived and invalidated when the code changes. A code graph describes the code; it never replaces the code as the authority. Entity identity follows [03-architecture.md](03-architecture.md) [§7.1](03-architecture.md#71-semantic-identity-and-relationship-typing). |
+| <a id="req-in-16"></a>REQ-IN-16 | MUST | Support import and export of memory in portable structured formats, including structured Markdown memory files and similar formats used by other memory systems. Import: provenance of the source (system, file, author, time, original identifiers) is preserved on every imported item, and imported items enter as candidates through admission ([4], [REQ-PR-10](#req-pr-10)); they are never admitted directly as memory ([REQ-IN-06](#req-in-06)). Export: only content the requesting identity may see is exported ([REQ-GOV-03](#req-gov-03), [REQ-SC-04](#req-sc-04)); each exported item carries provenance, scope, version, and classification; exports go only to organization-controlled destinations ([REQ-SEC-09](#req-sec-09)). Formats are documented and versioned so that memory is never coupled to one tool ([REQ-NFR-06](#req-nfr-06)). The managed store stays canonical; an export is a derived view. |
+
+### 5.2 Processing — reflection and extraction (component [3])
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-pr-01"></a>REQ-PR-01 | MUST | Transform raw activity into candidate experience units. Indexing, chunking, and summarization alone do not satisfy this requirement. |
+| <a id="req-pr-02"></a>REQ-PR-02 | MUST | Extract: new facts; decisions together with their reasons; mistakes, corrections, and candidate lessons; recurring patterns; solutions that hold only in a specific context. |
+| <a id="req-pr-03"></a>REQ-PR-03 | MUST | Distinguish evidence from interpretation, and classify every output as one of: evidence, interpretation, lesson (experience), durable knowledge, skill candidate, policy reference, authoritative reference. |
+| <a id="req-pr-04"></a>REQ-PR-04 | MUST | Preserve a link from every candidate to the originating trajectory and supporting evidence events. |
+| <a id="req-pr-05"></a>REQ-PR-05 | MUST | Identify duplicates and merge them without removing meaningful contextual differences. |
+| <a id="req-pr-06"></a>REQ-PR-06 | MUST | Surface contradictions between a candidate and existing memory. Contradictions are recorded and routed, never silently resolved. |
+| <a id="req-pr-07"></a>REQ-PR-07 | MUST | Identify the conditions under which a lesson applies (usage bounds: context, audience, tool, version, environment). |
+| <a id="req-pr-08"></a>REQ-PR-08 | MUST | Produce experience units with source, context, confidence, and usage bounds, not session summaries. |
+| <a id="req-pr-09"></a>REQ-PR-09 | MUST | Keep execution, reflection, curation, and admission as separable responsibilities. The executing agent MUST NOT have authority to write directly to shared organizational memory. |
+| <a id="req-pr-10"></a>REQ-PR-10 | MUST | Normalize and classify sensitive content before any candidate is considered for admission ([REQ-GOV-10](#req-gov-10), [§7](#7-security-and-compliance-baseline)). |
+| <a id="req-pr-11"></a>REQ-PR-11 | MUST | Detect meaningful boundaries (completion, failure, correction, decision) and use them to trigger reflection, rather than reflecting on every event. |
+| <a id="req-pr-12"></a>REQ-PR-12 | MAY | Run the write path asynchronously. It MUST optimize for evidence quality and safe admission, not latency. |
+| <a id="req-pr-13"></a>REQ-PR-13 | MUST | Generalize reconstructed procedures toward native tools. When a reconstruction becomes a Skill Candidate, express steps by intent and prefer the executing agent's native tools (CLIs, APIs, connectors) over replaying UI coordinates or clicks; parameterize the single observed case into a general procedure; mark steps that could not be generalized and remain UI-bound. |
+| <a id="req-pr-14"></a>REQ-PR-14 | MUST | Classify every artifact produced from observed work as an Experience unit or a Skill Candidate, never directly as a Skill, durable knowledge, or policy ([REQ-PR-03](#req-pr-03), [REQ-ME-03](#req-me-03)). |
+
+### 5.3 Memory — the core layer (components [4], [5])
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-me-01"></a>REQ-ME-01 | MUST | Decide what to retain, in what form, for how long, for whom, and when the organization should stop trusting it. A store that only keeps what was written into it does not satisfy this requirement. |
+| <a id="req-me-02"></a>REQ-ME-02 | MUST | Support four memory categories: working memory (current objective, state, constraints, unresolved decisions); episodic memory (what happened in a specific task or session); durable knowledge (facts and lessons distilled across experiences); personal context (preferences and working patterns scoped to an individual). |
+| <a id="req-me-03"></a>REQ-ME-03 | MUST | Keep skills, policies, and authoritative sources as separate object classes linked to memory, never merged into it. Memories and lessons advise; skills execute; policies constrain and remain human-owned; authoritative sources retain their official status. |
+| <a id="req-me-04"></a>REQ-ME-04 | MUST | Carry on every memory unit: unique identity; source and supporting evidence; owner; creation context; confidence; visibility scope; relevance scope; version; freshness and validity; relationships to other units; usage and outcome history. |
+| <a id="req-me-05"></a>REQ-ME-05 | MUST | Support typed relationships: `derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`. |
+| <a id="req-me-06"></a>REQ-ME-06 | MUST | Support the lifecycle transitions promotion, weakening, supersession, archival, expiry, contradiction handling, and rollback ([03-architecture.md](03-architecture.md) [§8](03-architecture.md#8-memory-lifecycle)). |
+| <a id="req-me-07"></a>REQ-ME-07 | MUST | Retain several conflicting lessons when each is valid in a different context, each with its own ownership and evidence. MUST NOT force a single global truth. |
+| <a id="req-me-08"></a>REQ-ME-08 | MUST | Treat forgetting as removing a unit's influence on current work. Forgetting does not by default delete history; source, versions, and evaluation history are retained for audit. Deletion is a separate governed operation ([REQ-GOV-07](#req-gov-07)). |
+| <a id="req-me-09"></a>REQ-ME-09 | MUST | Update memory incrementally: add or change only the affected units. MUST NOT rely on repeated monolithic LLM rewrites of accumulated memory. |
+| <a id="req-me-10"></a>REQ-ME-10 | MUST | Prevent a local mistake from becoming organizational truth (promotion gates [§5.6](#56-scope-and-promotion-component-4), evaluation [§5.4](#54-memory-utility-evaluation-component-10)). |
+| <a id="req-me-11"></a>REQ-ME-11 | MUST | Preserve previous versions of every unit and support rollback of any change. |
+| <a id="req-me-12"></a>REQ-ME-12 | MUST | Keep a Skill Candidate a candidate (not executable in production and not promotable) until all of the following gates have passed and their results are recorded on the candidate: compared with additional examples of the same intent; checked against applicable policy; evaluated on real outcomes in a safe environment or canary ([REQ-EV-08](#req-ev-08)); approved by an owner; versioned; made reversible (can be disabled and rolled back). These are the minimum gates; the full skill compilation, evaluation, and promotion design remains [OD-08](#od-08). |
+| <a id="req-me-13"></a>REQ-ME-13 | MUST | Treat evidence that a scope or source is deprecated (an archived repository, a retired product, a superseded procedure) as a lifecycle trigger. Every unit derived from the deprecated scope or source is weakened or expired ([REQ-ME-06](#req-me-06)), with history and evidence preserved ([REQ-ME-08](#req-me-08)), and the owners of the affected units and of the scope are notified. The transition is versioned and reversible by re-validation or rollback ([REQ-ME-11](#req-me-11)). A unit that is also supported by evidence from a source that is not deprecated is weakened and routed to its owner for re-validation rather than expired. |
+
+### 5.4 Memory utility evaluation (component [10])
+
+Validity (the unit is well supported) and utility (supplying it improved outcomes) are different properties and are measured separately.
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-ev-01"></a>REQ-EV-01 | MUST | Evaluate memory validity and memory utility separately. A unit may be well supported by evidence yet provide no measurable benefit in a given context. |
+| <a id="req-ev-02"></a>REQ-EV-02 | MUST | Treat candidate and admitted units as hypotheses whose utility is demonstrated through downstream outcomes, not assumed from confidence, retrieval frequency, or popularity. |
+| <a id="req-ev-03"></a>REQ-EV-03 | MUST | Scope utility measurements to the specific memory version, task class, audience, model, harness, and operating context. |
+| <a id="req-ev-04"></a>REQ-EV-04 | MUST | Prevent new or materially changed versions from inheriting the utility history of previous versions. |
+| <a id="req-ev-05"></a>REQ-EV-05 | MUST | Record beneficial, harmful, ignored, and corrected outcomes. |
+| <a id="req-ev-06"></a>REQ-EV-06 | MUST | Record the complete set of memories supplied to a run, and MUST NOT assign the full outcome to every retrieved unit. |
+| <a id="req-ev-07"></a>REQ-EV-07 | MUST | Preserve evaluation history and supporting evidence after a unit is weakened or removed from retrieval. |
+| <a id="req-ev-08"></a>REQ-EV-08 | MUST | Restrict evaluation of unvalidated memories to safe environments, controlled canaries, or low-risk tasks. |
+| <a id="req-ev-09"></a>REQ-EV-09 | MUST NOT | Weaken mandatory policy or security controls for evaluation purposes. |
+| <a id="req-ev-10"></a>REQ-EV-10 | MUST | Record whether retrieved memory helped, misled, was ignored, or required correction. That record becomes new input ([REQ-IN-02](#req-in-02)). |
+| <a id="req-ev-11"></a>REQ-EV-11 | SHOULD | Capture outcome signals both implicitly (subsequent corrections, retries, reverts, failed checks) and explicitly (consumer-reported feedback through the tool interface). |
+| <a id="req-ev-12"></a>REQ-EV-12 | MUST | Maintain an evaluation protocol that compares the context the Brain supplies with the report of a from-scratch internal research agent for a defined task class. The baseline agent receives the same objective, runs on approved endpoints ([REQ-SEC-08](#req-sec-08)), and has no access to the Brain. Both arms are judged on quality against the actual outcome (not on how convincing the report reads), on tokens spent, and on latency. For each task class the Brain MUST beat or match the baseline on quality while costing less in tokens and latency. Where it does not, the units supplied for that task class become candidates for weakening ([REQ-EV-02](#req-ev-02), [REQ-ME-06](#req-me-06)). The protocol defines the task classes, the judging method, the sample size, and the re-run cadence, and follows [REQ-EV-08](#req-ev-08) and [REQ-EV-09](#req-ev-09). |
+
+### 5.5 Output — context delivery (components [6], [7], [8])
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-out-01"></a>REQ-OUT-01 | MUST | Deliver the minimum sufficient context: to the correct person or agent; at the moment of decision or action; within an explicit context budget; with provenance and confidence; with access to supporting evidence when needed; inside the tools where work already happens. |
+| <a id="req-out-02"></a>REQ-OUT-02 | MUST | Be able to incorporate the current session objective and trajectory. The architecture MUST NOT limit retrieval to the latest prompt. |
+| <a id="req-out-03"></a>REQ-OUT-03 | MUST | Treat returning no memory as a valid and often desirable result. MUST NOT pad results to appear useful. |
+| <a id="req-out-04"></a>REQ-OUT-04 | MUST | Assemble relevant memory and make it available **before** the reasoning model begins acting. The primary read path MUST NOT depend solely on the model deciding to invoke a retrieval tool. |
+| <a id="req-out-05"></a>REQ-OUT-05 | MUST | Be triggerable by harness lifecycle events equivalent to `SessionStart` and `UserPromptSubmit`. The retrieval service MUST accept the current prompt together with available task and session state. The exact composition of the retrieval query is a controlled open decision ([OD-01](#od-01)). |
+| <a id="req-out-06"></a>REQ-OUT-06 | MUST | Apply deterministic constraints (identity, permissions, policy, validity, authority, explicit resource scope) **before** semantic ranking. |
+| <a id="req-out-07"></a>REQ-OUT-07 | SHOULD | Offer tool interfaces (for example MCP) for exploration, source inspection, and evidence expansion. Such tools MUST NOT be the only mechanism by which applicable memory reaches the model. |
+| <a id="req-out-08"></a>REQ-OUT-08 | MUST | Make the injection path observable: record which units were selected, which query representation and filters were used, and why each unit was included or omitted, subject to information-disclosure constraints. |
+| <a id="req-out-09"></a>REQ-OUT-09 | MUST | Support progressive disclosure: L0 compact relevance signal for selection; L1 navigational overview for deciding what to inspect; L2 full managed unit and supporting evidence on demand. |
+| <a id="req-out-10"></a>REQ-OUT-10 | MUST | Keep compact representations (L0, L1) derived, rebuildable, and linked to canonical memory and source evidence. |
+| <a id="req-out-11"></a>REQ-OUT-11 | MUST | Represent an empty, unavailable, filtered, or CannotProve result as **unknown**. It MUST NOT be interpreted as approval, as absence of constraints, or as evidence that no prior decision or applicable memory exists. |
+| <a id="req-out-12"></a>REQ-OUT-12 | MAY | Conceal the reason for absence when revealing it would disclose restricted information. |
+| <a id="req-out-13"></a>REQ-OUT-13 | MUST | Fail closed: actions that require authoritative memory or policy MUST stop when that authority cannot be retrieved or verified. |
+| <a id="req-out-14"></a>REQ-OUT-14 | MUST NOT | Require expensive composition on every interactive turn. |
+| <a id="req-out-15"></a>REQ-OUT-15 | MUST | Present each delivered unit with source, confidence, and usage boundaries, and allow the consumer to inspect the underlying evidence. |
+| <a id="req-out-16"></a>REQ-OUT-16 | MUST | Frame delivered memory as advisory data, not instructions. The injection format MUST make advisory status, provenance, and bounds explicit so that neither humans nor models treat memory content as policy or as a command. |
+| <a id="req-out-17"></a>REQ-OUT-17 | MUST | Offer transcript pitfall review as an output mode. Given the full transcript of an agent conversation, live or completed, return the lessons that apply to that work, the known pitfalls it is heading into or has hit, contradictions between the transcript and admitted memory, and conflicts with policy. This is a read-path mode of the retrieval composer [7] and the output adapters [8], not a new component. The same rules apply as for any delivery: provenance and confidence on every item ([REQ-OUT-15](#req-out-15)), the explicit context budget ([REQ-OUT-01](#req-out-01)), deterministic filters before ranking ([REQ-OUT-06](#req-out-06)), unknown semantics ([REQ-OUT-11](#req-out-11)), advisory framing ([REQ-OUT-16](#req-out-16)), and selection logging ([REQ-OUT-08](#req-out-08)). The transcript is untrusted input ([REQ-SEC-06](#req-sec-06)) and stays inside organization-controlled systems ([REQ-SEC-09](#req-sec-09)). The review never writes to memory; its selections and the outcomes that follow feed the evaluation loop ([REQ-EV-10](#req-ev-10)). |
+
+```
+   retrieval request (identity, scope, prompt, session state, budget)
+         |
+         +--> candidates found AND pass deterministic filters
+         |         --> deliver the minimal set with provenance and confidence
+         |
+         +--> nothing found / all filtered / service unavailable / CannotProve
+                   |
+                   v
+             result = UNKNOWN  (never "approved", never "no constraints apply",
+                   |            never "no prior decision exists")
+                   |
+                   +--> task does NOT require authoritative memory or policy
+                   |         --> proceed without memory; no fabricated "best guess"
+                   |
+                   +--> task REQUIRES authoritative memory or a policy decision
+                             --> FAIL CLOSED: stop or escalate; absence is not permission
+
+   the reason for absence MAY be withheld when revealing it would disclose restricted information
+```
+
+### 5.6 Scope and promotion (component [4])
+
+```
+  PERSONAL ==[gate]==> TEAM ==[gate]==> PRODUCT ==[gate]==> ORGANIZATION
+  where most                                                 widest audience,
+  experience starts                                          highest bar
+
+  each gate requires ALL of the following; frequency of repetition alone is never enough:
+    [ ] sufficient evidence and demonstrated utility at the current scope
+    [ ] sensitive information removed or protected for the wider audience
+    [ ] a named owner at the new scope who accepts the unit
+    [ ] permission to widen visibility (authority is never bypassed by usage)
+  rollback to a narrower scope is always possible; promotion history is kept
+```
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-sc-01"></a>REQ-SC-01 | MUST | Support four scopes: personal → team → product → organization. A unit may begin at any of them. |
+| <a id="req-sc-02"></a>REQ-SC-02 | MUST NOT | Promote a unit merely because it was frequently repeated or retrieved. |
+| <a id="req-sc-03"></a>REQ-SC-03 | MUST | Require for promotion: appropriate evidence, removal or protection of sensitive information, clear ownership at the target scope, and permission to widen the audience. |
+| <a id="req-sc-04"></a>REQ-SC-04 | MUST | Model visibility and relevance as separate dimensions. Visibility determines who may access a unit; relevance determines who should receive it for the current task. |
+| <a id="req-sc-05"></a>REQ-SC-05 | MUST | Allow sharing to grow from use, but MUST NOT let it bypass authority boundaries. |
+| <a id="req-sc-06"></a>REQ-SC-06 | MUST | Support demotion to a narrower scope and rollback of promotions, with history preserved ([REQ-GOV-08](#req-gov-08)). |
+
+```
+                              RELEVANT to the current task?
+                                  yes                 no
+                       +------------------+------------------+
+   allowed to ACCESS   |  DELIVER         |  do not deliver  |
+   (visibility)  yes   |  minimal set,    |  noise; wastes   |
+                       |  with provenance |  context budget  |
+                       +------------------+------------------+
+                 no    |  DO NOT DELIVER  |  nothing         |
+                       |  result = unknown|                  |
+                       |  never "no       |                  |
+                       |  constraint"     |                  |
+                       +------------------+------------------+
+```
+
+## 6. Governance requirements (component [9])
+
+Governance applies to input, processing, memory, and output alike. Permissions are a condition of every function, not a feature of one.
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-gov-01"></a>REQ-GOV-01 | MUST | Govern all four functions: what may be captured; what may be inferred and processed; what may be remembered and for how long; who may see or receive output; who may change policy; how organizational precedence is maintained. |
+| <a id="req-gov-02"></a>REQ-GOV-02 | MUST | Give organizational policy deterministic precedence over local approval, across every interface and execution environment. A local setting MUST NOT weaken an organizational policy. |
+| <a id="req-gov-03"></a>REQ-GOV-03 | MUST | Authorize capture, inference, storage, retrieval, and promotion separately, per identity and scope. |
+| <a id="req-gov-04"></a>REQ-GOV-04 | MUST | Restrict scope changes to the unit's owner or an authorized owner at the target scope. |
+| <a id="req-gov-05"></a>REQ-GOV-05 | MUST | Keep provenance and audit history for every derived item and every change. |
+| <a id="req-gov-06"></a>REQ-GOV-06 | MUST | Handle contradictions explicitly: record them, preserve both sides with ownership and evidence, and route resolution to owners. |
+| <a id="req-gov-07"></a>REQ-GOV-07 | MUST | Provide expiry and deletion controls, including secure deletion or anonymization at end of retention ([§7](#7-security-and-compliance-baseline)). |
+| <a id="req-gov-08"></a>REQ-GOV-08 | MUST | Support rollback of memory changes, scope changes, and skill promotions. |
+| <a id="req-gov-09"></a>REQ-GOV-09 | MUST | Separate private experience from shared organizational knowledge in storage, access, and processing. |
+| <a id="req-gov-10"></a>REQ-GOV-10 | MUST | Protect against conclusions leaking information from restricted sources. A unit derived from restricted sources MUST NOT be visible more widely than its most restrictive source until an authorized owner explicitly approves wider visibility ([OD-04](#od-04)). |
+| <a id="req-gov-11"></a>REQ-GOV-11 | MUST NOT | Author or modify policy autonomously. The system MAY propose policy candidates, clearly flagged, for human approval. |
+| <a id="req-gov-12"></a>REQ-GOV-12 | MUST | Bind every policy change to an authenticated policy owner identity and record it in the audit history. |
+
+## 7. Security and compliance baseline
+
+These requirements restate common enterprise security policy as it applies to this system. Where a requirement below conflicts with a design choice, the policy wins.
+
+| ID | Level | Requirement | Policy area |
+|---|---|---|---|
+| <a id="req-sec-01"></a>REQ-SEC-01 | MUST | Require authentication on every endpoint and enforce authorization server-side, never in clients or prompts. No wildcard CORS. No credentials or session tokens in URLs. Authentication is never disabled for convenience, including in development. | Access control |
+| <a id="req-sec-02"></a>REQ-SEC-02 | MUST | Encrypt all data in transit with TLS 1.2 or higher (TLS 1.3 preferred); enforce HSTS on web endpoints; use mutual TLS between system components and agents. TLS certificate verification MUST NOT be disabled in any client. | Data protection; agentic application security |
+| <a id="req-sec-03"></a>REQ-SEC-03 | MUST | Encrypt evidence, memory, projections, logs, and credentials at rest with AES-256-GCM. Keep keys in an approved vault (for example a cloud KMS or a secrets vault) for the life of the records. | Data protection; data retention |
+| <a id="req-sec-04"></a>REQ-SEC-04 | MUST NOT | Hardcode or commit secrets, private keys, or credentials in code, scripts, or configuration. Inject credentials at runtime from the approved vault. | Secure development; agentic application security |
+| <a id="req-sec-05"></a>REQ-SEC-05 | MUST | Use parameterized queries or ORM methods exclusively; raw SQL string concatenation is prohibited. Deserialize untrusted data only with safe, type-limited parsers. Subprocess calls use parameterized arguments, never shell interpolation. | Secure development; agentic application security |
+| <a id="req-sec-06"></a>REQ-SEC-06 | MUST | Validate and sanitize all input at system boundaries. Evidence, memory content, and tool results are untrusted input: strip or escape special tokens before any of it enters a prompt, and MUST NOT concatenate raw content into prompt instructions. No dynamic code execution with untrusted input. | Agentic application security; AI usage; secure development |
+| <a id="req-sec-07"></a>REQ-SEC-07 | MUST NOT | Log or write evidence, memory content, telemetry, or credentials to unauthorized or unencrypted destinations. Operational logs redact content and carry identifiers only. | Data protection |
+| <a id="req-sec-08"></a>REQ-SEC-08 | MUST | Route every LLM call made by the system (reflection, extraction, composition) through organization-approved enterprise endpoints only (an organization-controlled gateway or approved zero-retention enterprise services). No consumer or unapproved model endpoints. | AI usage |
+| <a id="req-sec-09"></a>REQ-SEC-09 | MUST | Keep all evidence, memory, and telemetry within organization-controlled systems. Implementers MUST NOT copy any of it to external services, personal accounts, or external repositories. Development environments use synthetic, de-identified, or approved demo data only. | Data protection; AI usage |
+| <a id="req-sec-10"></a>REQ-SEC-10 | MUST | Run every agent and MCP server component under a scoped, least-privilege identity (never admin or broad scopes), in a sandboxed or isolated runtime, with default-deny egress that allows only approved endpoints. Agents MUST NOT have access to the repositories or data sources that build or deploy them. MCP servers on workstations bind to localhost or stdio only and never access the local file system unsandboxed. | Agentic application security; AI usage |
+| <a id="req-sec-11"></a>REQ-SEC-11 | MUST | Apply post-retrieval PII filtering and guardrails on both inputs and outputs of any model-facing component. Use managed vector databases. | AI usage |
+| <a id="req-sec-12"></a>REQ-SEC-12 | MUST | Pass a security review with the organization's enterprise security architecture function before any component connects to corporate LLM infrastructure, internal APIs, or production data sources. | Agentic application security |
+| <a id="req-sec-13"></a>REQ-SEC-13 | MUST | Deliver a threat model covering at least: prompt injection through captured evidence; poisoning of shared memory; cross-scope leakage through derived units; privilege escalation through promotion; projection drift from canonical memory; denial of memory as a decision-forcing attack. | Secure development |
+| <a id="req-sec-14"></a>REQ-SEC-14 | MUST | Verify license compatibility before adding any dependency. No copyleft-licensed code in proprietary modules. | Engineering policy |
+| <a id="req-sec-15"></a>REQ-SEC-15 | MUST | Protect retained records according to their classification, and dispose of personal or confidential data at end of retention by secure electronic deletion or anonymization. | Data retention |
+
+## 8. Non-functional requirements
+
+| ID | Level | Requirement |
+|---|---|---|
+| <a id="req-nfr-01"></a>REQ-NFR-01 | MUST | **Latency.** Interactive retrieval returns useful candidates quickly (numeric target: [OD-06](#od-06)). Deeper composition is asynchronous or explicitly requested. |
+| <a id="req-nfr-02"></a>REQ-NFR-02 | MUST | **Reliability.** Partial component failure degrades gracefully. The system never silently fabricates memory; a degraded path reports unknown ([REQ-OUT-11](#req-out-11)). |
+| <a id="req-nfr-03"></a>REQ-NFR-03 | MUST | **Auditability.** Every derived item and every change is explainable and traceable to evidence, actor, and time. |
+| <a id="req-nfr-04"></a>REQ-NFR-04 | MUST | **Context efficiency.** Output is budget-aware and never dumps context. |
+| <a id="req-nfr-05"></a>REQ-NFR-05 | MUST | **Security.** The system fails closed when permission or policy data is missing or invalid. |
+| <a id="req-nfr-06"></a>REQ-NFR-06 | MUST | **Portability.** Memory and controls work across models, agents, harnesses, and applications through tool-independent interfaces. Memory is never coupled to a single agent harness, even if the first integration targets one. |
+| <a id="req-nfr-07"></a>REQ-NFR-07 | MUST | **Observability.** Capture, admission, retrieval, use, correction, and outcome quality are measured and reportable (see [04-kpi-and-measurements.md](04-kpi-and-measurements.md)). |
+| <a id="req-nfr-08"></a>REQ-NFR-08 | MUST | **Reversibility.** Memory updates, promotions, and derived skills support rollback. |
+| <a id="req-nfr-09"></a>REQ-NFR-09 | SHOULD | **Scale assumption.** The initial population is one engineering organization and its agents. Volume, concurrency, and retention sizing targets are set in Phase 0 ([03-architecture.md](03-architecture.md) [§15](03-architecture.md#15-proposed-delivery-phases--proposal)). |
+| <a id="req-nfr-10"></a>REQ-NFR-10 | MUST | **Net value accounting.** Measure the system's own net cost per task class. Cost: the tokens and latency spent by the write path (reflection and curation), by injected context, and by retrieval calls. Benefit: savings from shorter sessions, fewer retries, less re-research, and fewer repeated mistakes, together with the change in outcome quality. Token savings alone are not the metric. Measure with an A/B or paired protocol (comparable work with and without Brain-supplied context), and report per scope and per memory version ([REQ-EV-03](#req-ev-03), [REQ-EV-04](#req-ev-04)). Withholding context for measurement never withholds policy or authoritative memory ([REQ-EV-09](#req-ev-09), [REQ-OUT-13](#req-out-13)). A task class whose net value is not positive is reported to its owner, and the units supplied for it become candidates for weakening. |
+| <a id="req-nfr-11"></a>REQ-NFR-11 | MUST | **Management dashboard.** Provide a visual dashboard of the critical parts of the solution for memory owners, platform administrators, and security and compliance reviewers. It MUST show at least: (a) users and agents: active counts, scopes held, capture and consumption activity; (b) memories: counts by class, category, scope, and lifecycle state, the admission queue, promotions, and weakened, archived, and expired units; (c) relations: the typed relationships between units ([REQ-ME-05](#req-me-05)), including contradictions, supersessions, cross-scope links, and the path from a unit to its evidence; (d) statistics: capture volume, admission rate, retrieval latency, selection size against budget, and outcome signals (helped, misled, ignored, corrected); (e) net value per task class ([REQ-NFR-10](#req-nfr-10)) and research-agent baseline results ([REQ-EV-12](#req-ev-12)); (f) health and pending work: adapter status, projection staleness, policy conflicts, deprecation notices, open contradictions, and pending owner actions. The dashboard authenticates every request and enforces authorization server-side ([REQ-SEC-01](#req-sec-01)); it shows only what the viewing identity may see ([REQ-SC-04](#req-sc-04), [REQ-GOV-03](#req-gov-03)); it shows identifiers and aggregates, never raw evidence or memory content, unless the viewer drills down to L2 where permitted ([REQ-SEC-07](#req-sec-07)); and actions taken from it (approve, promote, resolve a contradiction, roll back) run through the admission and governance workflows [4] and [9], never around them. |
+
+## 9. Acceptance scenarios
+
+Each scenario is an acceptance test. The implementation team delivers automated or scripted evidence for each.
+
+| ID | Scenario | Given | When | Then (pass criteria) | Traces to |
+|---|---|---|---|---|---|
+| <a id="as-01"></a>AS-01 | Basic experience transfer | A first attempt at a task fails, a second attempt succeeds, and nobody documents the lesson. | Another person or agent later faces a similar problem in their tool. | The system has extracted and admitted the lesson; it is delivered proactively (hook-triggered, before reasoning), within budget, with evidence links; the consumer can expand to L2. | [IN-02](#req-in-02), [IN-03](#req-in-03), [PR-01](#req-pr-01), [PR-02](#req-pr-02), [PR-04](#req-pr-04), [ME-04](#req-me-04), [OUT-01](#req-out-01), [OUT-04](#req-out-04), [OUT-09](#req-out-09) |
+| <a id="as-02"></a>AS-02 | Contextual contradiction | Two teams learn conflicting lessons, each valid in its own context. | A member of either team works in that team's context. | Both units are retained with their ownership and evidence; the matching unit is retrieved; no global truth is forced; the contradiction is visible to owners. | [PR-06](#req-pr-06), [ME-07](#req-me-07), [GOV-06](#req-gov-06), [OUT-06](#req-out-06) |
+| <a id="as-03"></a>AS-03 | Harmful memory recovery | A lesson that previously appeared useful starts producing worse outcomes. | Outcome signals accumulate against the current version. | The signal is detected; the unit is weakened or suspended; its history and evidence are preserved; uncontrolled distribution stops; rollback is available. | [EV-02](#req-ev-02), [EV-05](#req-ev-05), [EV-07](#req-ev-07), [ME-06](#req-me-06), [ME-08](#req-me-08), [GOV-08](#req-gov-08) |
+| <a id="as-04"></a>AS-04 | Policy precedence | A locally approved agent action conflicts with organizational policy. | The action is attempted through any interface or execution environment. | Organizational policy prevails identically everywhere; the conflict is recorded in audit. | [GOV-02](#req-gov-02), [OUT-06](#req-out-06), [OUT-13](#req-out-13) |
+| <a id="as-05"></a>AS-05 | Safe absence | No reliable memory applies to the current task. | Retrieval runs. | The system returns no lesson; the result is represented as unknown; nothing plausible is manufactured; actions that require authority fail closed. | [OUT-03](#req-out-03), [OUT-11](#req-out-11), [OUT-13](#req-out-13), [NFR-02](#req-nfr-02) |
+| <a id="as-06"></a>AS-06 | Observed work to Skill Candidate | An employee records one run of a repetitive task (screen, terminal, narration) with notice and control over the recording. | The system reconstructs the session and the employee reviews it. | Raw evidence is stored immutably and separately from the reconstruction; every step links to its evidence; secrets and personal data were redacted on the workstation; the review decision is recorded; the artifact is classified as a Skill Candidate, expressed by intent with native tools where possible; it is not executable in production until the [REQ-ME-12](#req-me-12) gates pass; no recording data left organization-controlled systems. | [IN-09…14](#req-in-09), [PR-13](#req-pr-13), [PR-14](#req-pr-14), [ME-12](#req-me-12), [EV-08](#req-ev-08), [SEC-08](#req-sec-08), [SEC-09](#req-sec-09) |
+| <a id="as-07"></a>AS-07 | Net value accounting | A defined task class, and a paired or A/B protocol that runs comparable work with and without Brain-supplied context (advisory context only; policy and authoritative memory are never withheld). | The system computes net value for that task class over a reporting period. | Cost components (write-path tokens and latency, injected context, retrieval calls) and benefit components (session length, retries, re-research, repeated mistakes, outcome quality delta) are reported separately, per scope and per memory version. A class that saves tokens but lowers outcome quality is not reported as positive. A class with non-positive net value is flagged to its owner and its units are listed as candidates for weakening. | [NFR-10](#req-nfr-10), [NFR-07](#req-nfr-07), [EV-03](#req-ev-03), [EV-04](#req-ev-04), [EV-08](#req-ev-08), [EV-09](#req-ev-09), [OUT-08](#req-out-08) |
+| <a id="as-08"></a>AS-08 | Research-agent baseline | A defined task class and a from-scratch internal research agent with no Brain access, running on approved endpoints in a safe environment. | Both arms work the same set of tasks: one receives Brain-supplied context, the other produces its own research report. | Quality (judged against the actual outcome), tokens, and latency are compared per task class. If the Brain matches or beats the baseline on quality at lower cost, the class passes. Otherwise the units supplied for it are marked as candidates for weakening, with the comparison kept as evidence. | [EV-12](#req-ev-12), [EV-08](#req-ev-08), [EV-09](#req-ev-09), [EV-03](#req-ev-03), [ME-06](#req-me-06), [SEC-08](#req-sec-08) |
+| <a id="as-09"></a>AS-09 | Management dashboard visibility | A viewer who holds team-scope access only, and an owner who holds team and product scope. Units, users, relations, and statistics exist at personal, team, product, and organization scope. | Each opens the management dashboard and drills into a unit. | Each sees only the panels, counts, and relations their identity may see; out-of-scope items are absent or shown as unknown, not as zero. Panels show identifiers and aggregates, not content. Drill-down to L2 works only where permitted. An action started from the dashboard runs through the admission or governance workflow and is audited. Unauthenticated access is refused. | [NFR-11](#req-nfr-11), [SC-04](#req-sc-04), [GOV-03](#req-gov-03), [GOV-05](#req-gov-05), [SEC-01](#req-sec-01), [SEC-07](#req-sec-07), [OUT-11](#req-out-11), [ME-05](#req-me-05) |
+
+## 10. Controlled open design decisions
+
+These are unresolved. None becomes a requirement without the product owner's explicit approval. "Owner" decisions block the phase that depends on them.
+
+| ID | Decision | Why it matters for the build | Path |
+|---|---|---|---|
+| <a id="od-01"></a>OD-01 | Composition of the proactive retrieval query: latest prompt only, a derived session objective or trajectory, or a staged combination. | Determines what the hook sends, retrieval latency, and how [REQ-OUT-02](#req-out-02) is met. | Implementation team proposes in design phase; owner approves. |
+| <a id="od-02"></a>OD-02 | Minimum schema for an experience unit. | Everything in [5], [6], [7] depends on it; must satisfy [REQ-ME-04](#req-me-04) and [REQ-ME-05](#req-me-05). | Implementation team proposes; owner approves before Phase 1 build. |
+| <a id="od-03"></a>OD-03 | Admission thresholds for candidate lessons. | Sets the quality/volume trade-off of memory; drives false-positive rate. | Joint: implementation team proposes mechanism and initial values; owner sets policy. |
+| <a id="od-04"></a>OD-04 | Ownership of conclusions derived from multiple sources with different permissions. | Governs leakage ([REQ-GOV-10](#req-gov-10)) and who may widen visibility. | Owner decision, with security. Blocking for Phase 2. |
+| <a id="od-05"></a>OD-05 | Promotion criteria between personal, team, product, and organization scopes. | Defines the gates in [§5.6](#56-scope-and-promotion-component-4); implemented as configurable rules. | Owner decision. Blocking for Phase 2. |
+| <a id="od-06"></a>OD-06 | Latency target for the interactive read path. | Sizes [6] and [7]; decides what is precomputed. | Owner decision. Blocking for Phase 1 architecture. |
+| <a id="od-07"></a>OD-07 | Retention and expiry defaults per memory category and scope. | Required for [REQ-GOV-07](#req-gov-07) and [REQ-SEC-15](#req-sec-15). | Owner decision, with security and legal. Blocking for Phase 1 go-live. |
+| <a id="od-08"></a>OD-08 | How skills are compiled, evaluated, and promoted from knowledge, beyond the minimum gates fixed by [REQ-ME-12](#req-me-12). | Separate lifecycle ([REQ-ME-03](#req-me-03)); later phase. | Implementation team proposal in Phase 3 design. |
+| <a id="od-09"></a>OD-09 | Whether any memory class may be edited directly by users. | Affects personal-context UX and the audit model. | Owner decision. Blocking for Phase 1 UX. |
+| <a id="od-10"></a>OD-10 | Deployment topology: one logical memory with scope attributes and permission filtering, versus federated per-group stores with controlled flows between them. Includes the case of one user who belongs to several scopes or groups at once. | Decides whether experience can move between teams ([AS-01](#as-01), [AS-02](#as-02)), how visibility is enforced ([REQ-SC-04](#req-sc-04), [REQ-GOV-09](#req-gov-09)), how identity and operations are built, and how costly it is to change later. | Recorded position ([03-architecture.md](03-architecture.md) [§14.1](03-architecture.md#141-topology-position-od-10)): one logical memory with scopes is the target; isolated per-group stores are acceptable only as Phase 1 containment. Still open: multi-scope users, identity mapping, exit from containment. Implementation team proposes in Phase 0; owner approves. |
+
+## 11. Glossary
+
+| Term | Meaning |
+|---|---|
+| **Company Brain** | The whole system: capture → processing → governed memory → budgeted context delivery, with a feedback loop from outcomes. |
+| **Evidence event** | An immutable source record: a message, tool call and result, decision, correction, review comment, outcome. Never rewritten. |
+| **Trajectory** | An ordered sequence of evidence events describing one piece of work over time: problem → attempt → mistake → correction → outcome. The unit of capture. |
+| **Experience unit** | A contextual lesson inferred from one or more trajectories, with source, confidence, usage bounds, owner, and scope. The primary managed memory object. |
+| **Durable knowledge** | A claim supported across sufficient evidence and contexts, distilled from experience. |
+| **Skill** | An executable capability with its own validation, versioning, and rollout lifecycle. Separate from memory; linked to it. |
+| **Skill Candidate** | A generalized procedure derived from observed work that has not yet passed the gates to become a Skill. Not executable in production. |
+| **Policy** | A human-owned, authoritative constraint. Never authored by the system. Takes precedence over local approval. |
+| **Authoritative reference** | A pointer to the official source of truth (a system of record). Memory never replaces it. |
+| **Managed memory unit** | Any admitted, versioned, owned, scoped unit in the memory store: experience units, durable knowledge, episodic records, personal context. |
+| **Memory categories** | Working, episodic, durable knowledge, personal context. |
+| **Admission** | The governed step that turns a candidate produced by processing into a managed memory unit. Separate from execution and reflection. |
+| **Scope** | The audience a unit is admitted for: personal → team → product → organization. |
+| **Promotion** | Widening a unit's scope. Requires evidence, sensitivity handling, ownership, and permission. Repetition alone never promotes. |
+| **Visibility vs relevance** | Visibility: who is allowed to access a unit. Relevance: who should receive it for the current task. Modeled separately. |
+| **Weakening / supersession / archival / expiry** | Lifecycle transitions that reduce or stop a unit's influence on current work while preserving its history. |
+| **Forgetting** | Stopping a unit from influencing work. Not the same as deleting its history. |
+| **Utility vs validity** | Validity: the unit is supported by evidence. Utility: supplying it measurably improved outcomes in a given context and version. |
+| **Outcome signal** | Whether delivered memory helped, misled, was ignored, or required correction. Returns as new input. |
+| **Context budget** | The explicit token or size limit within which output must fit. Returning nothing is a valid result. |
+| **Harness** | The agent runtime or tool in which work happens. The Brain is harness-neutral. |
+| **Lifecycle hook** | A harness event the Brain reacts to (equivalent to `SessionStart` and `UserPromptSubmit`) for proactive retrieval before the model reasons. |
+| **MCP** | Model Context Protocol. Used for exploratory access, never as the only delivery path. |
+| **Progressive disclosure (L0 / L1 / L2)** | L0: compact relevance signal. L1: navigational overview. L2: the full managed unit with supporting evidence, on demand. |
+| **Unknown / CannotProve** | The meaning of an empty, filtered, or unavailable retrieval result. Never read as approval or as "no constraints apply." |
+| **Fail closed** | When authoritative memory or policy cannot be retrieved or verified, an action that requires it stops rather than proceeds. |
+| **Retrieval projection** | A derived index (vector, graph, full-text, relational) built from canonical memory. Never authoritative on its own. |
+| **Reflector / Curator** | Processing roles: the Reflector extracts candidate lessons; the Curator links, deduplicates, and prepares them for admission. Neither is the executing agent. |
+| **Observed work** | Work captured by watching the surface where it happens rather than by asking the person to describe it afterwards. |
+| **Reconstruction** | The interpreted intent and ordered steps derived from observed-work evidence. Stored beside the evidence, linked step by step, reviewed by the observed person. |
+| **Code graph** | A structure derived from repositories: symbols, call and dependency relations, ownership, version history. A source beside the code; never the authority over it. |
+| **Portable memory format** | A documented, versioned, structured format used to import memory from or export it to other systems. Imports enter as candidates only. |
+| **Scope deprecation** | Evidence that a scope or source is no longer valid. Weakens or expires every unit derived from it. |
+| **Net value** | Outcome benefit of supplied memory minus its cost. Token savings alone are not net value. |
+| **Research-agent baseline** | A from-scratch internal research agent used as the comparison arm for Brain-supplied context on a defined task class. |
+| **Transcript pitfall review** | An output mode that reviews a full agent transcript and returns applicable lessons, known pitfalls, contradictions with memory, and policy conflicts. |
+| **Agentic flow** | A place where a model decides something (capture, review, triage, detection, evaluation). Runs on the existing components; never writes shared memory directly. |
+| **Management dashboard** | The read-only visual view of users, memories, relations, statistics, net value, and health, filtered by the viewer's permissions. |
