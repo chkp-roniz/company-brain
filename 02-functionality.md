@@ -177,6 +177,8 @@ What the loop does:
 - counts an outcome as verified only when an explicit acceptance criterion was checked by a named evaluator; a successful execution alone is not a verified outcome ([REQ-ME-14](01-requirements.md#req-me-14))
 - weakens or suspends a version when harmful signals accumulate ([AS-03](01-requirements.md#as-03))
 - tests unvalidated units only in safe environments or canaries and never weakens policy or security controls to do so ([REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09))
+- runs **shadow evaluation** for candidate skills, rules, procedures, and memory-policy changes: the candidate sees the same eligible context as the active path, its output is recorded and compared with the active path and a no-candidate baseline, and it never controls production ([REQ-EV-13…15](01-requirements.md#req-ev-13))
+- counts promotion evidence by distinct contexts, not by repeated runs, and blocks promotion on any protected-task regression; the evidence threshold is set by risk and blast radius ([REQ-EV-16](01-requirements.md#req-ev-16), [REQ-EV-17](01-requirements.md#req-ev-17), [REQ-ME-12](01-requirements.md#req-me-12))
 - computes **net value** per task class: outcome benefit minus the cost of the write path, injected context, and retrieval ([REQ-NFR-10](01-requirements.md#req-nfr-10))
 - runs a **research-agent baseline**: for each task class, Brain-supplied context must match or beat a from-scratch research agent on quality while costing less in tokens and latency ([REQ-EV-12](01-requirements.md#req-ev-12))
 
@@ -289,6 +291,14 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 5. Evaluation credits the outcome to Decision B. The lesson behind Proposal A gets no credit for a result it did not produce; the override is kept as a signal for its owner.
 6. A week later a regression shows fix B was incomplete. The correction is linked to the original Outcome, which is kept, not overwritten.
 
+### 6.10 A better average, a protected regression (AS-12)
+
+1. A candidate rule is created from repeated work. It enters shadow evaluation: on each matching task it sees the same eligible context as the active path and records what it would do. The active path still decides.
+2. Over the following weeks [10] compares the candidate, the active path, and a no-candidate baseline on the same tasks. It records applicability, abstentions, agreement, execution validity, verified outcomes, and negative transfer. Ten replays of one task count as one context.
+3. The candidate is better on average across many distinct contexts, but it fails one task the owner marked as protected.
+4. The owner opens the promotion request. The record shows the aggregate gain, the contexts counted, the threshold for this capability class and risk, and the protected regression. Promotion is blocked.
+5. The candidate is revised. The new version starts its evidence again; it does not inherit the old version's results.
+
 ## 7. Agentic flows
 
 An agentic flow is a place where a model decides something. Flows run on the existing components. No flow writes shared memory directly; the model-driven step writes only evidence, candidates, recommendations, or proposals, and deterministic services commit changes.
@@ -301,7 +311,7 @@ An agentic flow is a place where a model decides something. Flows run on the exi
 | F4 | Deprecation detection: watch sources and scopes for deprecation and list derived units | Periodic source-status scan; adapter reports a status change | A deprecation evidence event and a proposal listing affected units |
 | F5 | Transcript pitfall review | A consumer, on a live checkpoint or completed transcript | Selection logs and outcome events only |
 | F6 | Research-agent baseline comparison: run the Brain arm and the from-scratch arm for a task class and judge both | Scheduled per task class; on demand; after a large memory change | Evaluation records; a weakening proposal when the class fails |
-| F7 | Candidate evaluation in canaries: run an unvalidated or changed unit in a safe canary and record outcomes per version | A unit is admitted as unvalidated or a new version is created; scheduled canary review | Utility records for the version; a promote, hold, or weaken recommendation |
+| F7 | Candidate evaluation in canaries and shadow: run an unvalidated or changed unit in a safe canary, or a candidate in shadow beside the active path, and record outcomes per version | A unit is admitted as unvalidated or a new version is created; scheduled canary review | Utility records for the version; a promote, hold, or weaken recommendation |
 | F8 | Skill-candidate gating: track and run the gates for a Skill Candidate | Owner requests promotion; a gate result arrives | Gate results on the candidate; sandbox runs only; a Skill is created only by owner decision |
 
 Common rules: every flow runs under its own scoped, least-privilege identity with default-deny egress and approved model endpoints only; evidence and memory it reads are untrusted input and never instructions; flows are idempotent; every run is logged; a flow may propose a flagged policy candidate but never changes policy.
@@ -360,7 +370,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
 - Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed.
 - Policies are human-owned and take deterministic precedence everywhere.
-- Utility is measured per version and context; versions never inherit reputation.
+- Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression.
 - Forgetting preserves history; deletion is a separate governed operation.
 - Interfaces are harness-neutral.
 - Reconstructions of observed work are stored beside raw evidence and reviewed by the observed person before they become candidates.
