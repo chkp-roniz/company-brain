@@ -63,30 +63,31 @@ Required relationships: `derived_from`, `supported_by`, `contradicts`, `supersed
 A trajectory records decisions and outcomes as evidence events. Decision lineage turns them into linked records, so the Brain can tell what was suggested, what an authorized actor chose, what actually ran, and what was later verified ([REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14)).
 
 ```
-   person / agent / memory unit versions
-          | proposed_by
-          v
-   +------------+ selected_by +------------+ executed_as +------------+ resulted_in +------------+
-   | Proposal   |------------>| Decision   |------------>| Execution  |------------>| Outcome    |
-   | what was   |             | what an    |             | what       |             | what was   |
-   | suggested  |             | authorized |             | actually   |             | observed   |
-   +------------+             | actor chose|             | ran        |             +-----+------+
-   not selected: kept in      +------------+             +------------+                   |
-   history, never shown as                                                   evaluated_by |
-   the decision taken                                                                     v
-                                          evaluator + acceptance criterion + uncertainty
-                                          criterion checked --> VERIFIED OUTCOME
-                                          no criterion      --> unverified observation
+   proposer                          deciding actor              executing                    evaluator
+   (person or agent)                 + authority                 identity                     + criterion
+         ^                                 ^                           ^                            ^
+         | proposed_by                     | decided_by                | executed_by                | evaluated_by
+   +-----+------+                    +-----+------+              +-----+------+               +-----+------+
+   | Proposal   |<--decision_selects-| Decision   |<--implements-| Execution  |--resulted_in->| Outcome    |
+   | what was   |                    | what an    |              | what       |               | what was   |
+   | suggested  |                    | authorized |              | actually   |               | observed   |
+   +-----+------+                    | actor chose|              | ran        |               +------------+
+         |                           +------------+              +------------+
+         | informed_by   exposure only: the unit version was available,
+         v               not proof that it changed the Proposal
+   memory unit versions
 
-   every record: actor . authority . timestamp . evidence links
+   a Proposal no Decision selects stays in history, never shown as the decision taken
+   Outcome with a criterion checked --> VERIFIED OUTCOME; without one --> unverified observation
+   every record: actor . authority . timestamp . evidence links; a missing stage stays unknown
    a correction is a new linked record; the original is never overwritten
 ```
 
 | Record | Created by | Required attributes |
 |---|---|---|
-| Proposal | [3], at a decision boundary | proposer (person, agent, or the memory unit versions that informed it), content, time, evidence |
-| Decision | [3], at a decision boundary | selecting actor, authority, the proposal selected (if any), time, evidence |
-| Execution | [3], from tool calls and results | executing identity, what ran, time, evidence |
+| Proposal | [3], at a decision boundary | proposer (person or agent), content, time, evidence; `informed_by` links to the memory unit versions supplied at that moment |
+| Decision | [3], at a decision boundary | deciding actor, authority, the Proposal selected (if any), time, evidence |
+| Execution | [3], from tool calls and results | executing identity, the Decision it implements, what ran, time, evidence |
 | Outcome | [10], from later evidence | evaluator, acceptance criterion, result, uncertainty, verified flag, time, evidence |
 
 Rules:
@@ -94,6 +95,8 @@ Rules:
 - A record is created only when evidence supports its stage. Missing stages stay unknown; the chain is never completed by inference.
 - An Outcome is verified only when an evaluator applied an explicit acceptance criterion. A positive signal without one is an unverified observation.
 - Lineage records are append-only. A correction is a new record linked to the original; nothing is overwritten.
+- Edges point from the later or dependent record to the earlier one or to its actor; only `resulted_in` points forward. Actors are linked by `proposed_by`, `decided_by`, `executed_by`, and `evaluated_by`; the Decision-to-Proposal edge is `decision_selects`.
+- `informed_by` records exposure only. It is the starting point for attribution, not its result ([§11](#11-evaluation-loop)).
 - Lineage records follow the visibility of their most restrictive evidence ([REQ-GOV-10](01-requirements.md#req-gov-10)).
 
 ### 2.2 Retention, retrieval, and grounding
@@ -222,7 +225,7 @@ Ten components. The write path runs left to right along the top; the read path r
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility and integrity verification), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; managed integrity and authenticity controls (signing identities, trust roots, rotation, revocation; [§10.1](#101-record-integrity-and-attestation)); governs the maintenance orchestrator and its low-risk action list ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
-| [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…17](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
+| [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute by evidence level (exposure, influence, causal) along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…17](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 
@@ -586,7 +589,7 @@ For every run the loop records: the complete set of units supplied (ids and vers
 What the loop does:
 
 - updates utility history on each supplied unit version, scoped to task class, audience, model, harness, and context ([REQ-EV-03](01-requirements.md#req-ev-03))
-- applies attribution rather than crediting or blaming every supplied unit for the whole outcome ([REQ-EV-06](01-requirements.md#req-ev-06)); where a decision-lineage chain exists, follows it from the Outcome through the Execution and Decision to the Proposal and the unit versions that informed it ([§2.1](#21-decision-lineage))
+- applies attribution rather than crediting or blaming every supplied unit for the whole outcome ([REQ-EV-06](01-requirements.md#req-ev-06)); where a decision-lineage chain exists, follows it from the Outcome through the Execution and Decision to the Proposal, and treats the Proposal's `informed_by` units as exposure only ([§2.1](#21-decision-lineage)). Credit or blame needs evidence of influence; a causal claim needs a controlled comparison (A/B, shadow, or replay). Each attribution records its level (exposure, influence, causal) and confidence; an outcome with no evidence of influence stays unattributed
 - verifies an outcome only against an explicit acceptance criterion and records the evaluator and uncertainty; a positive signal without a criterion stays an unverified observation and counts as weaker evidence ([REQ-ME-14](01-requirements.md#req-me-14))
 - triggers weakening or suspension when harmful signals accumulate against a version ([AS-03](01-requirements.md#as-03))
 - never lets a new or materially changed version inherit its predecessor's utility ([REQ-EV-04](01-requirements.md#req-ev-04))

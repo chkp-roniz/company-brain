@@ -180,7 +180,7 @@ What the loop does:
 - treats every unit as a hypothesis proven by outcomes, not by confidence, retrieval frequency, or popularity ([REQ-EV-02](01-requirements.md#req-ev-02))
 - scopes utility to version, task class, audience, model, harness, and context ([REQ-EV-03](01-requirements.md#req-ev-03))
 - never lets a new version inherit the reputation of the previous one ([REQ-EV-04](01-requirements.md#req-ev-04))
-- attributes outcomes rather than crediting or blaming every supplied unit ([REQ-EV-06](01-requirements.md#req-ev-06)), following the decision-lineage chain where one exists
+- attributes outcomes rather than crediting or blaming every supplied unit ([REQ-EV-06](01-requirements.md#req-ev-06)), following the decision-lineage chain where one exists. It keeps three things apart: memory that was **available** (exposure), memory that was **used** (influence, shown by evidence), and memory that **changed the result** (causal evidence from a controlled comparison). Only used memory earns credit or blame; an outcome with no evidence of influence stays unattributed
 - counts an outcome as verified only when an explicit acceptance criterion was checked by a named evaluator; a successful execution alone is not a verified outcome ([REQ-ME-14](01-requirements.md#req-me-14))
 - weakens or suspends a version when harmful signals accumulate ([AS-03](01-requirements.md#as-03))
 - tests unvalidated units only in safe environments or canaries and never weakens policy or security controls to do so ([REQ-EV-08](01-requirements.md#req-ev-08), [REQ-EV-09](01-requirements.md#req-ev-09))
@@ -294,7 +294,7 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 1. An agent, using a delivered lesson, proposes fix A. The engineer reviews it and selects fix B instead.
 2. Fix B is deployed. The deployment succeeds, but nothing has yet checked that the problem is gone. This is an Execution, not a verified outcome.
 3. The next day the test that defines "fixed" passes. The Outcome is recorded as verified, with the evaluator, the acceptance criterion, the time, and the uncertainty.
-4. The chain is linked: Proposal A (agent, informed by the lesson) → Decision B (engineer, under their authority) → Execution → verified Outcome. Proposal A stays in history and is never shown as the decision taken.
+4. The chain is linked: Proposal A (proposed by the agent; the lesson is linked as `informed_by`, which records that it was available, not that it caused anything) ← Decision B (decided by the engineer, under their authority) ← Execution (implements Decision B) → verified Outcome. Proposal A stays in history and is never shown as the decision taken.
 5. Evaluation credits the outcome to Decision B. The lesson behind Proposal A gets no credit for a result it did not produce; the override is kept as a signal for its owner.
 6. A week later a regression shows fix B was incomplete. The correction is linked to the original Outcome, which is kept, not overwritten.
 
