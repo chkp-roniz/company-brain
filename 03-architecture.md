@@ -748,7 +748,8 @@ The dashboard ([REQ-NFR-11](01-requirements.md#req-nfr-11)) is a read-only view 
 | [C] Relations | Typed relationships with contradictions, supersessions, cross-scope links, path to evidence | Relationship records in [5]; graph projection in [6] for navigation only | [REQ-ME-05](01-requirements.md#req-me-05), [REQ-GOV-06](01-requirements.md#req-gov-06), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [D] Statistics | Capture volume, admission rate, retrieval latency, selection size against budget, outcome signals | Observability data; [10] outcome records | [REQ-NFR-01](01-requirements.md#req-nfr-01), [REQ-NFR-04](01-requirements.md#req-nfr-04), [REQ-EV-05](01-requirements.md#req-ev-05) |
 | [E] Net value | Cost, benefit, and net value per task class, per scope and version; baseline results | [10] ([§11.1](#111-net-value-accounting), [§11.2](#112-research-agent-baseline)) | [REQ-NFR-10](01-requirements.md#req-nfr-10), [REQ-EV-12](01-requirements.md#req-ev-12) |
-| [F] Health and actions | Adapter status, projection staleness, policy conflicts, deprecation notices, open contradictions, pending owner actions, maintenance proposals, automatic actions and rollbacks | Adapters [1]; projections [6]; [9]; flows F3 and F4; maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | [REQ-NFR-02](01-requirements.md#req-nfr-02), [REQ-ME-13](01-requirements.md#req-me-13), [REQ-GOV-06](01-requirements.md#req-gov-06) |
+| [F] Health and actions | Adapter status, projection staleness, policy conflicts, deprecation notices, open contradictions, pending owner actions, maintenance proposals, automatic actions and rollbacks, maintenance backlog, stale-action rejections, legal-hold conflicts | Adapters [1]; projections [6]; [9]; flows F3 and F4; maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | [REQ-NFR-02](01-requirements.md#req-nfr-02), [REQ-ME-13](01-requirements.md#req-me-13), [REQ-GOV-06](01-requirements.md#req-gov-06) |
+| [G] Trust and learning | Grounding-ceiling coverage, per-request grounding decisions, ceiling breaches; resume and crash-resume failures, checkpoint age; candidates in shadow, promotion decisions and evidence, side-effect violations; failed verifications, quarantined records, compromise exposure, unverifiable history | [4], [5], [7] selection logs; [10] resume tests and promotion evidence records; [9] verification status and trust chain | [REQ-ME-16](01-requirements.md#req-me-16), [REQ-ME-31](01-requirements.md#req-me-31), [REQ-EV-13…19](01-requirements.md#req-ev-13), [REQ-SEC-16…19](01-requirements.md#req-sec-16) |
 
 Rules: every request authenticated and authorized server-side; each panel computed from what the viewer may see, with out-of-scope items absent or shown as unknown, never as a hidden zero; identifiers and aggregates only, with raw content only on a permitted L2 drill-down; actions open the matching workflow in [4] or [9] under the viewer's identity; queries read projections and precomputed aggregates, not live scans of [2] or [5].
 
@@ -816,8 +817,11 @@ Exit criteria are tied to acceptance scenarios.
    | L0 / L1 / L2 disclosure and absence semantics (unknown, fail closed)       |
    | outcome capture: helped / misled / ignored / corrected  [10]               |
    | flows F1, F2, F5 in basic form                                             |
+   | grounding ceiling + per-request grounding before ranking  [4] [7]          |
+   | continuity checkpoints, action journal, crash-safe resume  [5] [8]         |
    +----------------------------------------------------------------------------+
-        | exit: AS-01 and AS-05 pass on pilot teams; read path meets OD-06 target
+        | exit: AS-01, AS-05, AS-11, AS-13, AS-16 and AS-18 pass on pilot teams;
+        |       read path meets OD-06 target
         v
    PHASE 2  governance and scale (product + organization scope)
    +----------------------------------------------------------------------------+
@@ -826,10 +830,14 @@ Exit criteria are tied to acceptance scenarios.
    | MCP exploration tools: inspect source, expand evidence, report outcome     |
    | audit, expiry, deletion and rollback end to end  [9]                       |
    | contradiction triage and deprecation detection, flows F3 and F4            |
+   | maintenance orchestrator: expected versions, legal-hold precedence,        |
+   |   action-class owners, redirects  [5] [9]                                  |
+   | record integrity: attestation, historical trust chain, key events  [9]     |
    | management dashboard and owner / admin UI                                  |
    | exit from per-group containment into one logical memory                    |
    +----------------------------------------------------------------------------+
-        | exit: AS-02, AS-04 and AS-09 pass; org-wide rollout approved
+        | exit: AS-02, AS-04, AS-09, AS-14, AS-15, AS-19 and AS-20 pass;
+        |       org-wide rollout approved
         v
    PHASE 3  learning at scale
    +----------------------------------------------------------------------------+
@@ -839,11 +847,13 @@ Exit criteria are tied to acceptance scenarios.
    | work-observation recorder adapter with on-device redaction (REQ-IN-09..14) |
    | net value accounting and research-agent baseline  [10]                     |
    | flows F6 to F8: baseline, canaries, shadow, skill gating                   |
+   | shadow on a shared comparison basis with read-only tools  [10]             |
+   | attribution by evidence level along decision lineage  [10]                 |
    +----------------------------------------------------------------------------+
-          exit: AS-03, AS-06, AS-07 and AS-08 pass
+          exit: AS-03, AS-06, AS-07, AS-08, AS-10, AS-12 and AS-17 pass
 ```
 
-Why this order: Phase 1 proves the loop end to end on a narrow scope where a wrong lesson has a small blast radius. Governance for wider scopes (Phase 2) is built before anything is promoted beyond a team. Phase 3 adds the parts whose design depends on real outcome data.
+Why this order: Phase 1 proves the loop end to end on a narrow scope where a wrong lesson has a small blast radius. Grounding rules and crash-safe continuity are in Phase 1 because the first agent that reads memory or runs a long task needs them. Integrity and safe maintenance are in Phase 2 because they protect shared and organization-scope memory. Governance for wider scopes (Phase 2) is built before anything is promoted beyond a team. Phase 3 adds the parts whose design depends on real outcome data.
 
 What Phase 1 deliberately excludes: cross-team promotion, projections beyond what the pilot needs, skills, and any adapter other than the first harness. Building those first produces a warehouse, not a memory. Phase 1 may run pilot teams in isolated stores as containment ([§14.1](#141-topology-position-od-10)); that is a temporary way to limit blast radius, not the target topology.
 
@@ -900,6 +910,9 @@ An alternative framing describes this system as a "context layer": a service tha
 | Crash loses or repeats work | The process dies before any end-of-session step; the resumed task redoes an irreversible action or forgets a recent constraint | Incremental checkpoints, action journal with idempotency keys, reconcile with external state on resume ([REQ-ME-31](01-requirements.md#req-me-31)) |
 | Maintenance race | Two maintenance actions, or an action and an owner edit, hit the same unit; one silently overwrites the other, or a merge breaks references | Expected-version preconditions, idempotency keys, serialized conflicts, redirects on merge ([REQ-ME-32](01-requirements.md#req-me-32), [REQ-ME-35](01-requirements.md#req-me-35)) |
 | Cleanup destroys held records | Automatic expiry or deduplication removes a record under legal hold | Fixed precedence: legal hold before retention, owner decisions, and automation ([REQ-ME-33](01-requirements.md#req-me-33)) |
+| Self-reinforcing model claim | An agent's own repeated or summarized statement starts to count as evidence for itself | Autobiographical memory is non-grounding; repetition is not corroboration ([REQ-ME-17](01-requirements.md#req-me-17), [REQ-ME-18](01-requirements.md#req-me-18)) |
+| Shadow side effects | A candidate under evaluation sends a message, edits a ticket, or writes a file | Read-only tool façades; mutating calls recorded, never executed ([REQ-EV-18](01-requirements.md#req-ev-18)) |
+| Signature mistaken for truth | A correctly signed record is trusted as correct because the signature checks out | Integrity is not truth: verification only gates use; grounding is decided separately ([REQ-SEC-16](01-requirements.md#req-sec-16), [REQ-ME-16](01-requirements.md#req-me-16)) |
 | Observation without notice or redaction | Screens and terminals are recorded silently, or secrets leave the workstation | Notice and employee control; on-device redaction; approved endpoints only ([REQ-IN-13](01-requirements.md#req-in-13), [REQ-IN-14](01-requirements.md#req-in-14)) |
 
 ### 16.6 Building blocks, not a brain

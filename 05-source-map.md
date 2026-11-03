@@ -113,7 +113,7 @@ Public practitioner discussions that shaped the framing. Author names are intent
 | SRC-P04 | Knowledge graphs as agent memory | Supporting | A | Graph as a provenance-preserving retrieval projection, not the brain | [REQ-IN-15](01-requirements.md#req-in-15); [03](03-architecture.md) [§7](03-architecture.md#7-canonical-memory-and-retrieval-projections), [§16.6](03-architecture.md#166-building-blocks-not-a-brain) |
 | SRC-P05 | Ontology and RDF in practice | Supporting | A | Stable canonical identity, typed relationships, reversible entity resolution, versioned semantics | [REQ-ME-05](01-requirements.md#req-me-05); [03](03-architecture.md) [§7.1](03-architecture.md#71-semantic-identity-and-relationship-typing) |
 | SRC-P06 | Ad hoc analytical work | Supporting | R F | Capture gap in query history, notebooks, BI, and research trails | [REQ-IN-08](01-requirements.md#req-in-08); [02](02-functionality.md) [§3.1](02-functionality.md#31-input-capture) |
-| SRC-P07 | [Five-layer memory and meta-memory](https://lnkd.in/p/d2ipxmdj) | Direct | R F | Working-memory continuity, scheduled and event-driven maintenance, drift checks, outcome loop | [REQ-ME-02](01-requirements.md#req-me-02), [REQ-ME-19…25](01-requirements.md#req-me-19), [AS-13](01-requirements.md#as-13), [REQ-EV-10](01-requirements.md#req-ev-10), [REQ-OUT-02](01-requirements.md#req-out-02), [REQ-ME-26…30](01-requirements.md#req-me-26), [AS-14](01-requirements.md#as-14); [02](02-functionality.md) [§5](02-functionality.md#5-memory-lifecycle-functional-view); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity), [§8](03-architecture.md#8-memory-lifecycle), [§8.1](03-architecture.md#81-memory-maintenance-orchestrator) |
+| SRC-P07 | [Five-layer memory and meta-memory](https://lnkd.in/p/d2ipxmdj) | Direct | R F | The high-level need for working-memory continuity and meta-memory: scheduled and event-driven maintenance, drift checks, outcome loop | [REQ-ME-02](01-requirements.md#req-me-02), [REQ-ME-19…21](01-requirements.md#req-me-19), [REQ-ME-24](01-requirements.md#req-me-24), [AS-13](01-requirements.md#as-13), [REQ-EV-10](01-requirements.md#req-ev-10), [REQ-OUT-02](01-requirements.md#req-out-02), [REQ-ME-26…28](01-requirements.md#req-me-26), [AS-14](01-requirements.md#as-14); [02](02-functionality.md) [§5](02-functionality.md#5-memory-lifecycle-functional-view); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity), [§8](03-architecture.md#8-memory-lifecycle), [§8.1](03-architecture.md#81-memory-maintenance-orchestrator) |
 
 ---
 
@@ -153,7 +153,7 @@ Reverse index: requirement area → sources that shaped it.
 | [AS-10](01-requirements.md#as-10) | Decision lineage | I01, A10 |
 | [AS-11](01-requirements.md#as-11) | Self-reinforcing model claim | I01, A06 |
 | [AS-12](01-requirements.md#as-12) | Protected regression | I01, A13, A14 |
-| [AS-13](01-requirements.md#as-13) | Session continuity | P07 |
+| [AS-13](01-requirements.md#as-13) | Session continuity | P07 (need); compaction record and resume-test detail are design additions |
 | [AS-14](01-requirements.md#as-14) | Dependency change | P07, A16 |
 | [AS-15](01-requirements.md#as-15) | Tampered record | I01 |
 | [AS-16](01-requirements.md#as-16) | Purpose-dependent grounding | I01 (separation only; see [§5](#5-design-additions-without-an-external-source)) |
@@ -182,8 +182,8 @@ Quick lookup for the design ideas that recur across the documents.
 | Deprecation as a lifecycle trigger | [REQ-ME-13](01-requirements.md#req-me-13) | A16, F02 |
 | Utility ≠ validity, per version | [REQ-EV-01…04](01-requirements.md#req-ev-01) | A09, A11, A14 |
 | Failure attribution; exposure vs influence vs causal evidence | [REQ-EV-06](01-requirements.md#req-ev-06); [03](03-architecture.md) [§11](03-architecture.md#11-evaluation-loop); [04](04-kpi-and-measurements.md) [§4.1](04-kpi-and-measurements.md#41-outcome-signal-capture-and-attribution) | A10 |
-| Governed memory maintenance | [REQ-ME-26…35](01-requirements.md#req-me-26), [AS-19](01-requirements.md#as-19); [03](03-architecture.md) [§8.1](03-architecture.md#81-memory-maintenance-orchestrator) | P07, A16, A01 |
-| Session continuity and compaction | [REQ-ME-19…25](01-requirements.md#req-me-19); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity) | P07 |
+| Governed memory maintenance | [REQ-ME-26…35](01-requirements.md#req-me-26), [AS-19](01-requirements.md#as-19); [03](03-architecture.md) [§8.1](03-architecture.md#81-memory-maintenance-orchestrator) | P07 (need), A16, A01; detail in [§5](#5-design-additions-without-an-external-source) |
+| Session continuity and compaction | [REQ-ME-19…25](01-requirements.md#req-me-19), [REQ-ME-31](01-requirements.md#req-me-31); [03](03-architecture.md) [§2.3](03-architecture.md#23-working-memory-and-continuity) | P07 (need); detail in [§5](#5-design-additions-without-an-external-source) |
 | Shadow evaluation and risk-calibrated promotion | [REQ-EV-13…19](01-requirements.md#req-ev-13), [AS-17](01-requirements.md#as-17), [REQ-ME-12](01-requirements.md#req-me-12); [03](03-architecture.md) [§11.3](03-architecture.md#113-shadow-evaluation-and-promotion); [04](04-kpi-and-measurements.md) [§4.5](04-kpi-and-measurements.md#45-shadow-evaluation) | I01, A09, A11, A13, A14 |
 | Decision lineage and verified outcomes | [REQ-PR-15](01-requirements.md#req-pr-15), [REQ-ME-14](01-requirements.md#req-me-14); [03](03-architecture.md) [§2.1](03-architecture.md#21-decision-lineage) | I01 |
 | Integrity is not truth (signed provenance) | [REQ-SEC-16…17](01-requirements.md#req-sec-16); [03](03-architecture.md) [§10.1](03-architecture.md#101-record-integrity-and-attestation) | I01 |
@@ -220,10 +220,13 @@ These items come from the design work itself, not from a cited resource. They ar
 | [REQ-EV-18](01-requirements.md#req-ev-18), shadow side-effect isolation through read-only tool façades | Operational safety need; no research source |
 | [REQ-ME-31](01-requirements.md#req-me-31), crash-safe continuity: incremental checkpoints, action journal with idempotency keys, recovery point | Standard reliability practice; no research source |
 | [REQ-ME-32…34](01-requirements.md#req-me-32), maintenance concurrency (expected versions, idempotency keys), legal-hold precedence, action-class ownership | Standard data-management and records-management practice; no research source |
+| Detailed continuity and maintenance contract: compaction rules and compaction record ([REQ-ME-22…23](01-requirements.md#req-me-22)), no stored hidden reasoning ([REQ-ME-25](01-requirements.md#req-me-25)), maintenance audit fields ([REQ-ME-29](01-requirements.md#req-me-29)), and the owner-approved low-risk action list ([REQ-ME-30](01-requirements.md#req-me-30)) | P07 supports only the high-level need for continuity and maintenance; A01 supports no monolithic rewrite. The detailed rules are ours |
+| Dashboard panel [G] and the operational reconciliation of phases, gates, and review cadence for the controls above | Planning and operations proposal |
 
 ## 6. Coverage notes and limits
 
 - **Security and compliance (`REQ-SEC-*`)** reflects a common enterprise security baseline, not external research. The exception is signed provenance in `REQ-SEC-16…17`, drawn from I01; a valid signature proves origin and integrity, not that a claim is true. Each adopter should map `REQ-SEC-*` to its own policies.
+- **Practitioner posts (P-series)** support needs and directions, not detailed contracts. Where a requirement adds detail beyond what a post shows, the detail is listed in [§5](#5-design-additions-without-an-external-source).
 - **Foundational papers (F01–F04)** were reviewed at abstract and metadata level. Recheck exact claims against the full text before academic publication.
 - **Product pages, repositories, and practitioner posts** are architectural inputs, not independent proof of vendor performance claims.
 - **Reviewed but excluded:** other repositories and tools were explored but did not lead to an accepted requirement, so they are not listed.

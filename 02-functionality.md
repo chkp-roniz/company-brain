@@ -372,12 +372,19 @@ A read-only view over data the system already keeps. It adds no store and no wri
    [F] HEALTH AND ACTIONS    adapters up / total . projection staleness . policy conflicts
                              deprecation notices . open contradictions . pending owner actions
                              maintenance proposals . automatic actions and rollbacks
+                             maintenance backlog . stale-action rejections . legal-hold conflicts
                              [approve] [promote] [resolve]  -> run through admission / governance
+   [G] TRUST AND LEARNING    grounding: ceiling coverage . per-request decisions . ceiling breaches
+                             continuity: resume / crash-resume failures . checkpoint age
+                             shadow: candidates . promotion decisions and evidence . side effects
+                             integrity: failed checks . quarantined . compromise . unverifiable
 
    drill-down: panel > unit > L1 > L2 evidence, only where the viewer is permitted
 ```
 
 Rules: every request is authenticated and authorized server-side; items outside the viewer's permission are absent or shown as unknown, never as a zero that hides restricted units; panels show identifiers and aggregates, with raw content only on a permitted drill-down to L2; actions open the matching workflow under the viewer's identity; queries read projections and precomputed aggregates, not live scans of the evidence log or the store.
+
+Review behavior: each item in [F] and [G] links to the owner review that decides it, for example the protected-task set of a capability class, the low-risk maintenance action list and its action-class owners, or trust-root health. A red item with no owner is itself shown as a pending owner action.
 
 ## 9. Integration surfaces
 
