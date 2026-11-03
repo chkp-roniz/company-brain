@@ -157,6 +157,7 @@ Governance applies to every function ([REQ-GOV-01](01-requirements.md#req-gov-01
 | Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback |
 | Output | Who may see and who should receive; policy precedence over local approval; fail closed when permission or policy data is missing |
 | Policy | Human ownership; authenticated changes; deterministic precedence across every interface and execution environment |
+| Integrity | Which records must be attested; managed signing identities; trust roots, rotation, revocation, expiry; quarantine on failed verification |
 
 Key behaviors:
 
@@ -166,6 +167,7 @@ Key behaviors:
 - Maintenance acts automatically only from the owner-approved low-risk list; every other maintenance change is a proposal an owner decides, and every action keeps its prior version and rollback path ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
 - Contradictions are recorded with both sides, their owners, and their evidence, and routed to owners ([REQ-GOV-06](01-requirements.md#req-gov-06)).
 - A unit derived from restricted sources is never visible more widely than its most restrictive source until an owner approves wider visibility ([REQ-GOV-10](01-requirements.md#req-gov-10)).
+- High-impact records (shared memory, policy references, Skill versions, admission decisions, verified outcomes) carry integrity attestations bound to managed identities and organization-managed keys. A record that fails verification is quarantined and never used for grounding or promotion. A valid signature shows who wrote a record and that it is unchanged; it does not make the claim true ([REQ-SEC-16…18](01-requirements.md#req-sec-16)).
 - The system never authors or changes policy. It may propose a clearly flagged policy candidate for human approval ([REQ-GOV-11](01-requirements.md#req-gov-11)).
 
 ### 3.6 Evaluation: the feedback loop
@@ -398,6 +400,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Interfaces are harness-neutral.
 - Reconstructions of observed work are stored beside raw evidence and reviewed by the observed person before they become candidates.
 - Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically.
+- High-impact records are verified before grounding or promotion; a failed check quarantines the record, and a valid signature never makes a claim true.
 - A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself.
 - Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the gates pass.
 - Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations.

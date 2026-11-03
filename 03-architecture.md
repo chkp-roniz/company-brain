@@ -201,14 +201,14 @@ Ten components. The write path runs left to right along the top; the read path r
 | # | Component | Responsibility | Primary interfaces | Key requirements |
 |---|---|---|---|---|
 | [1] | Source adapters | Connect systems of record and work surfaces; emit normalized evidence events carrying identity, time, source, and authorization context. Includes harness exporters, repository, ticket, document, and database connectors, the code-graph adapter, the memory import adapter, and the work-observation recorder | Write-once ingest API into [2] | [REQ-IN-01…16](01-requirements.md#req-in-01), [REQ-GOV-03](01-requirements.md#req-gov-03) |
-| [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05) |
+| [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived; holds integrity attestations for verified outcome records ([§10.1](#101-record-integrity-and-attestation)) | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
-| [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state and continuity checkpoints ([§2.3](#23-working-memory-and-continuity)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…30](01-requirements.md#req-me-01) |
+| [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating; signs admission decisions and verifies attestations before promotion | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02), [REQ-SEC-16](01-requirements.md#req-sec-16) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state and continuity checkpoints ([§2.3](#23-working-memory-and-continuity)); attestation and verification status per high-impact unit version ([§10.1](#101-record-integrity-and-attestation)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…30](01-requirements.md#req-me-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change; repaired by the maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
-| [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01) |
+| [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility and integrity verification), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
-| [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; governs the maintenance orchestrator and its low-risk action list ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
+| [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; managed integrity and authenticity controls (signing identities, trust roots, rotation, revocation; [§10.1](#101-record-integrity-and-attestation)); governs the maintenance orchestrator and its low-risk action list ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
 | [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…17](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
@@ -344,7 +344,7 @@ Steps (REQ-OUT-*):
 
 1. Infer the current session objective and constraints from the prompt plus available task and session state (composition per [OD-01](01-requirements.md#od-01)).
 2. Retrieve candidates by semantic, structural, temporal, and scope signals from [6].
-3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, and grounding eligibility **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18)). Units that may be retrieved but not used for grounding stay in the set marked continuity only.
+3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, grounding eligibility, and integrity verification of high-impact records **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18), [REQ-SEC-16](01-requirements.md#req-sec-16)). A record that fails verification is quarantined and dropped ([§10.1](#101-record-integrity-and-attestation)). Units that may be retrieved but not used for grounding stay in the set marked continuity only.
 4. Rank by relevance, confidence, freshness, and demonstrated utility for this version, task class, and harness.
 5. Select the smallest set that fits the declared context budget. An empty set is a legitimate answer.
 6. Present L0 or L1 with source, confidence, usage boundaries, and grounding status, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16)). Continuity-only units are marked so that neither a person nor a model cites them as fact.
@@ -527,8 +527,44 @@ A unit that is visible but irrelevant is noise and is not delivered. A unit that
 | Memory | What may be remembered, for how long, at which scope; owner-controlled scope changes; expiry; deletion; rollback; deprecation transitions; which maintenance actions may run automatically |
 | Output | Who may see and who should receive; policy precedence over local approval; fail closed when policy or permission data is missing |
 | Policy | Human ownership; authenticated changes; deterministic precedence across every interface and execution environment |
+| Integrity | Which records must be attested; managed signing identities; trust roots, rotation, revocation, expiry; quarantine on failed verification ([§10.1](#101-record-integrity-and-attestation)) |
 
 Precedence is deterministic and environment-independent: a local setting, a user preference, a personal-scope memory, or a locally approved agent action can never weaken an organizational policy ([REQ-GOV-02](01-requirements.md#req-gov-02), [AS-04](01-requirements.md#as-04)).
+
+### 10.1 Record integrity and attestation
+
+High-impact records are tamper-evident and attributable ([REQ-SEC-16…18](01-requirements.md#req-sec-16)). This is a control in [9] applied at [2], [4], [5], [7], and [10]; it is not a new component.
+
+```
+   WRITE   admission [4] . outcome verifier [10] . policy owner
+     record version --> sign with managed identity --> attestation
+                        (key from org trust root [9])       |
+                                                             v
+   STORE   [2] / [5]: record + attestation + verification status
+                                                             |
+   USE     read path [7] . promotion [4] / [10]              v
+     verify against trust root --+-- pass --> continue to grounding and
+                                 |            promotion checks (truth is
+                                 |            decided there, not here)
+                                 |
+                                 +-- fail / revoked / unknown key -->
+                                     quarantine: no grounding, no
+                                     promotion; audit; notify owner
+```
+
+| Object | Holds | Kept in |
+|---|---|---|
+| Integrity attestation | Record ID and version, content digest, signing identity (user or service), source identity, time, trust-root reference | With the record in [2] or [5] |
+| Verification status | Verified, failed, unverified, or signer revoked; last check time; reason | [5]; audited in [9] |
+| Trust root | Organization-managed keys and authorities, rotation schedule, revocation list, expiry | [9], backed by the approved vault ([REQ-SEC-03](01-requirements.md#req-sec-03)) |
+
+Rules:
+
+- **Covered records**, in proportion to risk: shared and organization-scope memory units, policy references, Skill versions, admission decisions, and verified outcome records ([§2.1](#21-decision-lineage)). Personal and working memory may be exempt by policy.
+- **Verify before use.** Verification is deterministic and runs before grounding (read path step 3, [§5](#5-read-path)) and before promotion ([§11.3](#113-shadow-evaluation-and-promotion)).
+- **Fail closed.** A record that fails verification, has an unknown key, or was signed only by a local self-signed agent identity is treated as unverified: quarantined, excluded from grounding and promotion, and reported to its owner as an audited incident. It stays in history and returns to use only after the owner re-verifies it.
+- **Revocation.** Records presented under a revoked identity or key do not inherit trust. Records it signed earlier are flagged and routed to owners as maintenance proposals ([§8.1](#81-memory-maintenance-orchestrator)).
+- **Integrity is not truth.** A valid attestation proves origin and that the record is unchanged. It does not make a claim grounding-eligible; that is still decided by [REQ-ME-16](01-requirements.md#req-me-16).
 
 ## 11. Evaluation loop
 
@@ -839,6 +875,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Interfaces are harness-neutral ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 - [ ] Reconstructions of observed work are stored beside raw evidence, never instead of it, and are reviewed by the observed employee before they become candidates ([REQ-IN-11](01-requirements.md#req-in-11), [REQ-IN-12](01-requirements.md#req-in-12)).
 - [ ] Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
+- [ ] High-impact records are verified before grounding or promotion; a failed check quarantines the record, and a valid signature never makes a claim true ([REQ-SEC-16](01-requirements.md#req-sec-16), [REQ-SEC-17](01-requirements.md#req-sec-17), [REQ-SEC-18](01-requirements.md#req-sec-18)).
 - [ ] A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself ([REQ-ME-21](01-requirements.md#req-me-21)).
 - [ ] Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the [REQ-ME-12](01-requirements.md#req-me-12) gates pass ([REQ-PR-14](01-requirements.md#req-pr-14), [REQ-ME-12](01-requirements.md#req-me-12)).
 - [ ] Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations ([REQ-IN-16](01-requirements.md#req-in-16)).
