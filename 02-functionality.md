@@ -86,7 +86,7 @@ Memory decides what to keep, in what form, for how long, for whom, and when to s
 | Durable knowledge | Facts and lessons distilled across experiences | Team to organization |
 | Personal context | One person's preferences and working patterns | Personal |
 
-**Working-memory lifecycle** ([REQ-ME-19…25](01-requirements.md#req-me-19)): working memory belongs to one session, task, or handoff and expires with it. Before the session ends, the task is handed off, the context is reset, or it is compacted, the Brain writes a **continuity checkpoint**: objective, done and pending work, open decisions, constraints, dependencies, evidence and authority boundaries, and next actions. Compaction first removes obsolete and duplicate items by rule, then summarizes what is left, and records what it kept, removed, changed, and is unsure about. A checkpoint lets the task resume; it is not organizational knowledge and is never promoted by itself. What should last goes through the normal write path. Resume tests check that nothing is invented, repeated, or lost.
+**Working-memory lifecycle** ([REQ-ME-19…25](01-requirements.md#req-me-19), [REQ-ME-31](01-requirements.md#req-me-31)): working memory belongs to one session, task, or handoff and expires with it. Before the session ends, the task is handed off, the context is reset, or it is compacted, the Brain writes a **continuity checkpoint**: objective, done and pending work, open decisions, constraints, dependencies, evidence and authority boundaries, and next actions. Compaction first removes obsolete and duplicate items by rule, then summarizes what is left, and records what it kept, removed, changed, and is unsure about. A checkpoint lets the task resume; it is not organizational knowledge and is never promoted by itself. What should last goes through the normal write path. Resume tests check that nothing is invented, repeated, or lost. A crash gives no warning, so the checkpoint is also updated during the task, after each important change and on a timer. Every action that cannot be undone or that others can see is written to an **action journal** before it runs and again with its result. After a crash, the task resumes from the latest checkpoint and the journal; an action with no recorded result is checked, not run again.
 
 **Background maintenance** ([REQ-ME-26…30](01-requirements.md#req-me-26)): the Brain checks itself on a schedule, when a measure crosses a threshold, and when something changes (a source, tool, schema, or model). It looks for growth, slow retrieval, duplicates, contradictions, stale or expired units, harmful or ignored units, skill drift, changed dependencies, due reviews, and indexes that disagree with canonical memory. A short owner-approved list of low-risk, reversible actions runs automatically, such as rebuilding a stale index. Everything else becomes a proposal in the owner's queue. Maintenance never silently rewrites or deletes evidence or canonical memory, and every action can be traced and rolled back.
 
@@ -323,6 +323,15 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 4. Changing the Skill or the lessons is not on the list. Maintenance sends the owner a proposal: weaken the Skill until it is re-validated, and review the lessons. The proposal shows the event and which units depend on the tool.
 5. The owner accepts weakening the Skill and rejects one lesson change. Both decisions go through admission and are audited. Nothing was rewritten before the owner decided.
 
+### 6.13 A crash in the middle of work (AS-18)
+
+1. An agent has run a database migration and is about to send a release notice. A reviewer added a constraint a few minutes ago.
+2. The checkpoint was updated after the migration and after the constraint. The migration is in the action journal with its result; the notice is in the journal as intended.
+3. The agent process is killed. No end-of-session step runs.
+4. A new instance resumes from the latest checkpoint and the journal. It does not run the migration again and keeps the constraint.
+5. The notice has no recorded result, so the instance checks whether it was sent before doing anything. It was not, so it sends it once, using the same idempotency key.
+6. The checkpoint's age at the crash is recorded and compared with the recovery point for this task class.
+
 ## 7. Agentic flows
 
 An agentic flow is a place where a model decides something. Flows run on the existing components. No flow writes shared memory directly; the model-driven step writes only evidence, candidates, recommendations, or proposals, and deterministic services commit changes.
@@ -402,6 +411,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically.
 - High-impact records are verified before grounding or promotion; a failed check quarantines the record, and a valid signature never makes a claim true.
 - A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself.
+- A crash loses at most the task class's recovery point; an irreversible action with no recorded result is checked, never repeated blindly.
 - Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the gates pass.
 - Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations.
 - Deprecation of a scope or source weakens or expires every derived unit, with history preserved and owners notified.

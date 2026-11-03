@@ -138,6 +138,8 @@ Working memory is temporary state for one session, task, or handoff ([REQ-ME-19]
 ```
    SESSION / TASK   working memory: objective, state, constraints, open decisions
           |
+          |  during work: checkpoint update on each material state change + periodic
+          |               irreversible action -> ACTION JOURNAL: intent + key, then result
           |  trigger: session end . handoff . reset . compaction   ([8] hook)
           v
    1. DETERMINISTIC CLEANUP   remove obsolete and duplicate items by rule;
@@ -152,6 +154,8 @@ Working memory is temporary state for one session, task, or handoff ([REQ-ME-19]
           |                               retained . removed . transformed . uncertain
           v
    4. RESUME   [7] loads the checkpoint for the same task only
+               after an abrupt end: latest checkpoint + journal, reconciled with
+               external state; intent without result -> check, never re-run blindly
                resume tests: invented state . repeated work . lost constraints
           |
           +--> durable memory only through the normal write path: [3] -> [4]
@@ -160,7 +164,8 @@ Working memory is temporary state for one session, task, or handoff ([REQ-ME-19]
 | Object | What it is | Where | Key attributes |
 |---|---|---|---|
 | Working-memory state | Temporary operational state of one session or task | [5] working-memory area | owner, session or task id, scope, expiry |
-| Continuity checkpoint | What the task needs to resume ([REQ-ME-20](01-requirements.md#req-me-20)) | [5] working-memory area | objective, completed and pending work, unresolved decisions, constraints, dependencies, evidence links, authority boundaries, next actions, source session, time |
+| Continuity checkpoint | What the task needs to resume ([REQ-ME-20](01-requirements.md#req-me-20)) | [5] working-memory area | objective, completed and pending work, unresolved decisions, constraints, dependencies, evidence links, authority boundaries, next actions, source session, time, age |
+| Action journal entry | One irreversible or externally visible action of a task ([REQ-ME-31](01-requirements.md#req-me-31)) | [5] working-memory area, append-only | task id, action, target, idempotency key, intent time, result, result time |
 | Compaction record | Audit of one compaction ([REQ-ME-23](01-requirements.md#req-me-23)) | [2] | trigger, retained, removed (with rule), transformed, uncertain, checkpoint id, time |
 
 Rules:
@@ -172,7 +177,8 @@ Rules:
 - Uncertain items stay marked as uncertain in the checkpoint and the compaction record; a clean-looking summary is not a substitute ([REQ-ME-23](01-requirements.md#req-me-23)).
 - Resume tests run in [10]; a failure is recorded as evidence ([REQ-ME-24](01-requirements.md#req-me-24)).
 - Hidden model reasoning is not stored as required memory; decisions, evidence, corrections, and observable outcomes are ([REQ-ME-25](01-requirements.md#req-me-25)).
-- Working-memory state and checkpoints expire with their scope under [9] retention rules.
+- **Crash safety.** [8] updates the checkpoint after each material state change and on a timer, not only at end triggers. Each irreversible or externally visible action is journaled with its intent and idempotency key before it runs and with its result after. On resume after an abrupt end, the checkpoint and journal are reconciled with external state; an action with an intent and no result is checked, never re-run blindly. Checkpoint age is recorded against the task class's recovery point ([REQ-ME-31](01-requirements.md#req-me-31)).
+- Working-memory state, checkpoints, and journals expire with their scope under [9] retention rules.
 
 ## 3. Logical architecture
 
@@ -220,10 +226,10 @@ Ten components. The write path runs left to right along the top; the read path r
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived; holds integrity attestations for verified outcome records ([§10.1](#101-record-integrity-and-attestation)) | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating; signs admission decisions and verifies attestations before promotion | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02), [REQ-SEC-16](01-requirements.md#req-sec-16) |
-| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state and continuity checkpoints ([§2.3](#23-working-memory-and-continuity)); attestation and verification status per high-impact unit version ([§10.1](#101-record-integrity-and-attestation)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…30](01-requirements.md#req-me-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
+| [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state, continuity checkpoints, and action journals ([§2.3](#23-working-memory-and-continuity)); attestation and verification status per high-impact unit version ([§10.1](#101-record-integrity-and-attestation)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…31](01-requirements.md#req-me-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change; repaired by the maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
 | [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility and integrity verification), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
-| [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
+| [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction, and update them during work; journal irreversible actions | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; managed integrity and authenticity controls (signing identities, trust roots, rotation, revocation; [§10.1](#101-record-integrity-and-attestation)); governs the maintenance orchestrator and its low-risk action list ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
 | [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute by evidence level (exposure, influence, causal) along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…19](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
@@ -866,6 +872,7 @@ An alternative framing describes this system as a "context layer": a service tha
 | Memory that costs more than it saves | Tokens and latency are added to every task while the work gets no better | Net value accounting per task class; research-agent baseline; weakening of units that do not pay ([REQ-NFR-10](01-requirements.md#req-nfr-10), [REQ-EV-12](01-requirements.md#req-ev-12)) |
 | A deprecated source keeps steering work | Lessons from an archived repository or retired procedure keep being supplied | Scope or source deprecation weakens or expires every derived unit ([REQ-ME-13](01-requirements.md#req-me-13)) |
 | Imported memory admitted as truth | Memory from another system is trusted because it arrived in a clean format | Imports enter as candidates with provenance and pass admission ([REQ-IN-16](01-requirements.md#req-in-16), [REQ-IN-06](01-requirements.md#req-in-06)) |
+| Crash loses or repeats work | The process dies before any end-of-session step; the resumed task redoes an irreversible action or forgets a recent constraint | Incremental checkpoints, action journal with idempotency keys, reconcile with external state on resume ([REQ-ME-31](01-requirements.md#req-me-31)) |
 | Observation without notice or redaction | Screens and terminals are recorded silently, or secrets leave the workstation | Notice and employee control; on-device redaction; approved endpoints only ([REQ-IN-13](01-requirements.md#req-in-13), [REQ-IN-14](01-requirements.md#req-in-14)) |
 
 ### 16.6 Building blocks, not a brain
@@ -913,6 +920,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Maintenance never silently rewrites or deletes evidence or canonical memory; only owner-approved low-risk, reversible actions run automatically ([REQ-ME-29](01-requirements.md#req-me-29), [REQ-ME-30](01-requirements.md#req-me-30)).
 - [ ] High-impact records are verified before grounding or promotion; a failed check quarantines the record, and a valid signature never makes a claim true ([REQ-SEC-16](01-requirements.md#req-sec-16), [REQ-SEC-17](01-requirements.md#req-sec-17), [REQ-SEC-18](01-requirements.md#req-sec-18)).
 - [ ] A continuity checkpoint resumes its own task; it is never organizational knowledge and never becomes durable memory by itself ([REQ-ME-21](01-requirements.md#req-me-21)).
+- [ ] Checkpoints are kept current during work and irreversible actions are journaled, so a crash loses at most the recovery point and never repeats an action blindly ([REQ-ME-31](01-requirements.md#req-me-31)).
 - [ ] Artifacts from observed work enter as Experience units or Skill Candidates; no Skill Candidate executes in production before the [REQ-ME-12](01-requirements.md#req-me-12) gates pass ([REQ-PR-14](01-requirements.md#req-pr-14), [REQ-ME-12](01-requirements.md#req-me-12)).
 - [ ] Imported memory enters as candidates with provenance preserved; exports are permission-filtered and stay in organization-controlled destinations ([REQ-IN-16](01-requirements.md#req-in-16)).
 - [ ] Deprecation of a scope or source weakens or expires every unit derived from it, with history preserved and owners notified ([REQ-ME-13](01-requirements.md#req-me-13)).
