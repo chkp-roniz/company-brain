@@ -101,6 +101,9 @@ Each table lists: the KPI, how it is computed, the data source, the granularity 
 | Units per injection | Mean and distribution of units delivered per retrieval | [7] | task class | Weekly | Memory owner | Informational; supports budget tuning |
 | L2 expansion rate | Share of injections where the consumer expanded at least one unit to L2 | [8] | task class | Weekly | Memory owner | Informational; signal of trust and inspection |
 | Selection log completeness | Share of retrievals with units, versions, query form, filters, and inclusion/omission reasons logged | [7] | — | Daily | Security reviewer | 100% ([REQ-OUT-08](01-requirements.md#req-out-08)) |
+| Grounding-decision coverage | Share of admitted units with recorded retention, retrieval, and grounding decisions and a reason | [4], [5] | source class | Weekly | Memory owner | 100% ([REQ-ME-15](01-requirements.md#req-me-15)) |
+| Ineligible-grounding attempts blocked | Count of times a non-grounding unit was offered as support for a claim or an authority-requiring action; share blocked | [7], [9] | source class, cause | Weekly | Security reviewer | 100% blocked; every unblocked case reviewed ([REQ-OUT-18](01-requirements.md#req-out-18)) |
+| Projection-policy parity | Share of sampled projection and L0/L1 entries whose retrieval and grounding status matches the canonical unit | [6], [7] | projection type | Daily | Platform admin | 100% ([REQ-OUT-18](01-requirements.md#req-out-18)) |
 | Advisory framing compliance | Share of injections carrying advisory status, provenance, and bounds | [8] | harness | Daily | Security reviewer | 100% ([REQ-OUT-16](01-requirements.md#req-out-16)) |
 | Fail-closed events | Count of authority-requiring actions stopped because policy or authoritative memory could not be retrieved | [7], [9] | cause | Weekly | Security reviewer | Each event reviewed; trend tracked |
 | Transcript reviews | Count of transcript pitfall reviews; items returned by class (lesson, pitfall, contradiction, policy conflict) | F5 | harness | Weekly | Memory owner | Informational |
@@ -248,6 +251,7 @@ Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-re
 | [AS-08](01-requirements.md#as-08) Research-agent baseline | Pass or fail per class with evidence kept | Research-agent baseline result |
 | [AS-09](01-requirements.md#as-09) Dashboard visibility | Role-based tests show only permitted panels, counts, relations | Dashboard visibility compliance |
 | [AS-10](01-requirements.md#as-10) Decision lineage | Scripted trajectory yields a linked, verified chain; the unselected proposal and the unverified execution are handled correctly | Decision-lineage completeness, verified-outcome coverage |
+| [AS-11](01-requirements.md#as-11) Self-reinforcing model claim | Repeated and summarized assistant claim stays continuity only; grounding blocked until independent evidence | Ineligible-grounding attempts blocked, projection-policy parity |
 
 ## 5. Phase gates
 

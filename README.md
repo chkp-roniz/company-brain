@@ -50,9 +50,9 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 
 1. The executing agent never writes shared memory.
 2. No monolithic rewrite of accumulated memory.
-3. Deterministic filters (identity, permission, policy, validity, authority, scope) run before ranking.
+3. Deterministic filters (identity, permission, policy, validity, authority, scope, grounding eligibility) run before ranking.
 4. Memory reaches the model before it reasons; exploration tools are never the only path.
-5. Projections are derived and invalidated with canonical memory; never authoritative.
+5. Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
 6. Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed.
 7. Policies are human-owned and take deterministic precedence everywhere.
 8. Utility is measured per version and context; versions never inherit reputation.
