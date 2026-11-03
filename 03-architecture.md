@@ -48,7 +48,7 @@ Seven classes stay distinct. Memory objects are derived from evidence and linked
 |---|---|---|---|
 | Evidence event | A source event: message, tool call and result, decision, correction, review, outcome, observation | Immutable | id, time, actor, source system, authorization context, classification, payload reference |
 | Trajectory | Ordered evidence describing one piece of work | Append-only until closed | id, objective, events[], boundaries (completion, failure, correction, decision), outcome |
-| Experience unit | A contextual lesson inferred from one or more trajectories | Versioned | all [REQ-ME-04](01-requirements.md#req-me-04) attributes, usage bounds, lifecycle state, source class, retention / retrieval / grounding decisions ([§2.2](#22-retention-retrieval-and-grounding)) |
+| Experience unit | A contextual lesson inferred from one or more trajectories | Versioned | all [REQ-ME-04](01-requirements.md#req-me-04) attributes, usage bounds, lifecycle state, source class, retention and retrieval decisions, grounding ceiling and permitted uses ([§2.2](#22-retention-retrieval-and-grounding)) |
 | Durable knowledge | A claim supported across sufficient evidence and contexts | Versioned | as above, plus the set of supporting experience units and contexts |
 | Skill | An executable capability | Versioned, own lifecycle | validation status, rollout state, link to the knowledge it was compiled from |
 | Policy | A human-owned, authoritative constraint | Human-edited only | owner, precedence, scope of application, version |
@@ -98,22 +98,35 @@ Rules:
 
 ### 2.2 Retention, retrieval, and grounding
 
-Every managed unit carries three separate decisions ([REQ-ME-15](01-requirements.md#req-me-15)). Storing or finding a unit never makes it trusted.
+Retention, retrieval, and grounding are separate decisions ([REQ-ME-15](01-requirements.md#req-me-15)). Retention and retrieval rules and a grounding ceiling are stored on the unit; grounding for a specific request is decided at read time. Storing or finding a unit never makes it trusted.
 
 | Decision | Question | Decided by | Inputs |
 |---|---|---|---|
 | Retention | Is the unit kept? | [4] at admission; lifecycle in [5] | scope, policy, lifecycle state |
 | Retrieval | May it be returned to this consumer? | [7] step 3 | identity, permissions, visibility, scope, validity |
-| Grounding | May it support a factual claim, a recommendation, or a consequential action? | [4] records it; [7] step 3 enforces it | source class, supporting evidence (including verified outcomes, [§2.1](#21-decision-lineage)), authority, validity, freshness, visibility, purpose, task context, policy ([REQ-ME-16](01-requirements.md#req-me-16)) |
+| Grounding ceiling | What is the most it may ever support, and which non-grounding uses may it serve? | [4] at admission; versioned in [5] | source class, supporting evidence (including verified outcomes, [§2.1](#21-decision-lineage)), authority, validity, policy ([REQ-ME-16](01-requirements.md#req-me-16)) |
+| Grounding decision | May it support this claim or action, for this requester and purpose, now? | [7] step 3; recorded in the selection log | the ceiling, freshness, visibility, identity, purpose, task context, consequence of the action, policy |
 
 Source classes include authoritative reference, policy, tool observation, person statement, verified outcome, and **autobiographical** (assistant-generated beliefs, summaries, self-assessments, prior utterances). Autobiographical units are non-grounding by default ([REQ-ME-17](01-requirements.md#req-me-17)).
 
+A unit delivered without grounding carries a **permitted-use label** ([REQ-OUT-18](01-requirements.md#req-out-18)):
+
+| Label | Use |
+|---|---|
+| `continuity` | Resume or explain what was said or done before |
+| `hypothesis` | A lead to check; never a premise |
+| `disputed` | One side of an open contradiction, shown with the other side |
+| `audit` | Context for reviewing past behavior |
+| `reflection` | Input to the experience processor [3] |
+
+Owners may add labels; none of them permits grounding.
+
 Rules:
 
-- The grounding decision and its reason are versioned. A change in grounding eligibility is a new version with the new evidence linked.
+- The grounding ceiling and its reason are versioned; raising or lowering it is a new version with the evidence linked. A per-request decision is not a unit change: it is logged with the selection (read path step 8, [§5](#5-read-path)) and never exceeds the ceiling.
 - A unit derived from an autobiographical unit (a summary, a merge, a reconstruction) inherits its non-grounding status unless independent evidence is linked ([REQ-ME-18](01-requirements.md#req-me-18)).
 - Repetition is not corroboration. The count of statements, retrievals, or copies never enters the grounding decision.
-- Grounding eligibility is never higher than the eligibility of the evidence the unit rests on.
+- A unit's grounding ceiling is never higher than the ceiling of the evidence it rests on.
 
 ### 2.3 Working memory and continuity
 
@@ -344,12 +357,12 @@ Steps (REQ-OUT-*):
 
 1. Infer the current session objective and constraints from the prompt plus available task and session state (composition per [OD-01](01-requirements.md#od-01)).
 2. Retrieve candidates by semantic, structural, temporal, and scope signals from [6].
-3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, grounding eligibility, and integrity verification of high-impact records **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18), [REQ-SEC-16](01-requirements.md#req-sec-16)). A record that fails verification is quarantined and dropped ([§10.1](#101-record-integrity-and-attestation)). Units that may be retrieved but not used for grounding stay in the set marked continuity only.
+3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, per-request grounding eligibility, and integrity verification of high-impact records **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18), [REQ-SEC-16](01-requirements.md#req-sec-16)). A record that fails verification is quarantined and dropped ([§10.1](#101-record-integrity-and-attestation)). Units that may be retrieved but not used for grounding in this request stay in the set with a permitted-use label.
 4. Rank by relevance, confidence, freshness, and demonstrated utility for this version, task class, and harness.
 5. Select the smallest set that fits the declared context budget. An empty set is a legitimate answer.
-6. Present L0 or L1 with source, confidence, usage boundaries, and grounding status, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16)). Continuity-only units are marked so that neither a person nor a model cites them as fact.
+6. Present L0 or L1 with source, confidence, usage boundaries, and grounding status, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16)). Units with a non-grounding label are marked so that neither a person nor a model cites them as fact.
 7. Allow the consumer to expand to L2 and inspect the underlying evidence.
-8. Record selection details ([REQ-OUT-08](01-requirements.md#req-out-08)) and, later, downstream use and outcome signals ([REQ-EV-10](01-requirements.md#req-ev-10)).
+8. Record selection details, including each unit's per-request grounding decision, purpose, and label ([REQ-OUT-08](01-requirements.md#req-out-08)) and, later, downstream use and outcome signals ([REQ-EV-10](01-requirements.md#req-ev-10)).
 
 Design rules:
 
@@ -387,7 +400,7 @@ Rules: no new component; the review never writes to [5]; a contradiction it find
 
 - L0 and L1 are derived views of canonical units and MUST be rebuildable from [5] and [2] at any time ([REQ-OUT-10](01-requirements.md#req-out-10)).
 - Every L0 or L1 element carries the identity of its canonical unit so a consumer can always get to L2 and to the evidence.
-- Every L0 or L1 element carries the grounding status of its canonical unit and can never widen it ([REQ-OUT-18](01-requirements.md#req-out-18)).
+- Every L0 or L1 element carries the grounding ceiling and permitted-use labels of its canonical unit and can never widen them ([REQ-OUT-18](01-requirements.md#req-out-18)).
 - The context budget is spent on L0/L1 by default; L2 is pulled only on request or when the task class requires it.
 
 ## 7. Canonical memory and retrieval projections
@@ -418,7 +431,7 @@ Rules:
 - Probabilistically extracted entities, relationships, summaries, and lessons MUST NOT become authoritative memory merely because they were written to a graph or an index.
 - Projections MAY use graph, vector, textual, relational, or hybrid representations. The representation never changes the governance status of the underlying unit.
 - Every retrieved claim or relationship preserves a path to its managed memory unit and supporting evidence.
-- Every projection entry inherits the retrieval and grounding restrictions of its canonical unit. A projection can never widen grounding rights; when grounding status changes in [5], affected entries are invalidated like any other change ([REQ-OUT-18](01-requirements.md#req-out-18)).
+- Every projection entry inherits the retrieval and grounding restrictions of its canonical unit. A projection can never widen grounding rights; when the grounding ceiling or permitted uses change in [5], affected entries are invalidated like any other change ([REQ-OUT-18](01-requirements.md#req-out-18)).
 - When a canonical unit is weakened, superseded, archived, expired, or deleted, every affected projection MUST be invalidated or updated. Projection staleness is a correctness bug, not an optimization problem.
 
 Recommended hybrid store: immutable evidence log + text/vector store + graph + relational lifecycle store. The graph is a projection and a relations layer, never the authority.
@@ -865,7 +878,7 @@ A proposal or implementation that violates any of these is non-compliant regardl
 
 - [ ] The executing agent has no write path to shared memory ([REQ-PR-09](01-requirements.md#req-pr-09)).
 - [ ] No monolithic rewrite of accumulated memory, anywhere ([REQ-ME-09](01-requirements.md#req-me-09)).
-- [ ] Deterministic identity, permission, policy, validity, authority, scope, and grounding-eligibility filters run before ranking ([REQ-OUT-06](01-requirements.md#req-out-06), [REQ-OUT-18](01-requirements.md#req-out-18)).
+- [ ] Deterministic identity, permission, policy, validity, authority, scope, and per-request grounding-eligibility filters run before ranking ([REQ-OUT-06](01-requirements.md#req-out-06), [REQ-OUT-18](01-requirements.md#req-out-18)).
 - [ ] Memory reaches the model before it reasons; MCP is exploratory, not the only path ([REQ-OUT-04](01-requirements.md#req-out-04), [REQ-OUT-07](01-requirements.md#req-out-07)).
 - [ ] Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative ([§7](#7-canonical-memory-and-retrieval-projections), [REQ-OUT-18](01-requirements.md#req-out-18)).
 - [ ] Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)).

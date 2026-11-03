@@ -156,6 +156,7 @@ Reverse index: requirement area → sources that shaped it.
 | [AS-13](01-requirements.md#as-13) | Session continuity | P07 |
 | [AS-14](01-requirements.md#as-14) | Dependency change | P07, A16 |
 | [AS-15](01-requirements.md#as-15) | Tampered record | I01 |
+| [AS-16](01-requirements.md#as-16) | Purpose-dependent grounding | I01 (separation only; see [§5](#5-design-additions-without-an-external-source)) |
 | [OD-02](01-requirements.md#od-02) | Minimum experience-unit schema | A03 |
 | [OD-03](01-requirements.md#od-03) | Admission thresholds | A17 |
 | [OD-08](01-requirements.md#od-08) | Skill compilation and promotion | A05, I01 |
@@ -187,7 +188,7 @@ Quick lookup for the design ideas that recur across the documents.
 | Proactive delivery before reasoning | [REQ-OUT-04…05](01-requirements.md#req-out-04) | I13 |
 | Progressive disclosure L0/L1/L2 | [REQ-OUT-09](01-requirements.md#req-out-09); [03](03-architecture.md) [§6](03-architecture.md#6-progressive-disclosure) | I07 |
 | Absence = unknown; fail closed | [REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13) | I09, I08, A06 |
-| Stored does not mean grounding-authoritative; autobiographical memory | [REQ-ME-15…18](01-requirements.md#req-me-15), [REQ-OUT-18](01-requirements.md#req-out-18); [03](03-architecture.md) [§2.2](03-architecture.md#22-retention-retrieval-and-grounding) | I01, A06 |
+| Stored does not mean grounding-authoritative; autobiographical memory | [REQ-ME-15…18](01-requirements.md#req-me-15), [REQ-OUT-18](01-requirements.md#req-out-18), [AS-16](01-requirements.md#as-16); [03](03-architecture.md) [§2.2](03-architecture.md#22-retention-retrieval-and-grounding) | I01, A06 |
 | Projections never authoritative | [03](03-architecture.md) [§7](03-architecture.md#7-canonical-memory-and-retrieval-projections) | A16, I06, P04 |
 | Code graph as a derived source | [REQ-IN-15](01-requirements.md#req-in-15) | A16, P04, I15 |
 | Semantic identity and typed relations | [REQ-ME-05](01-requirements.md#req-me-05); [03](03-architecture.md) [§7.1](03-architecture.md#71-semantic-identity-and-relationship-typing) | I15, P05, A08 |
@@ -210,6 +211,7 @@ These items come from the design work itself, not from a cited resource. They ar
 | Delivery phases ([03](03-architecture.md) [§15](03-architecture.md#15-proposed-delivery-phases--proposal)) and phase gates ([04](04-kpi-and-measurements.md) [§5](04-kpi-and-measurements.md#5-phase-gates)) | Planning proposal |
 | [REQ-NFR-09](01-requirements.md#req-nfr-09), scale assumption | Planning input to be set by each adopter |
 | [REQ-SEC-18](01-requirements.md#req-sec-18), organization-managed keys and trust roots | From the enterprise security baseline; I01 shows signed provenance but no key-management standard |
+| Grounding ceiling, per-request grounding decision, and permitted-use labels ([REQ-ME-15…16](01-requirements.md#req-me-15), [REQ-OUT-18](01-requirements.md#req-out-18), [AS-16](01-requirements.md#as-16)) | Extends I01's retention, retrieval, and grounding separation; the two-level model and the labels are ours |
 
 ## 6. Coverage notes and limits
 
