@@ -95,6 +95,12 @@ Each table lists: the KPI, how it is computed, the data source, the granularity 
 | Invented-state failures | Resume tests where the resumed agent asserts state found in neither the checkpoint nor the evidence | [10] | task class | Weekly | Memory owner | Target zero; each case reviewed |
 | Lost-constraint failures | Resume tests where a material constraint present before the transition is missing after it | [10] | task class | Weekly | Memory owner | Target zero; each case reviewed |
 | Deterministic-cleanup share | Share of compactions where rule-based cleanup ran before semantic summarization; share of removed items removed by rule | [2] compaction records | trigger | Weekly | Platform admin | 100% ran first ([REQ-ME-22](01-requirements.md#req-me-22)); share informational |
+| Maintenance backlog and lag | Open maintenance proposals; age of the oldest; time from trigger to proposal or action | Orchestrator, [9] | trigger type, owner | Daily | Memory owner | Informational; aging items escalate |
+| Due-review completion | Share of units with a due review date reviewed on time | Orchestrator, [5] | scope | Monthly | Memory owner | **Proposal:** ≥ 90% |
+| Skill-drift detection | Time from a dependency change (tool, schema, model) to a flag on every affected Skill | Orchestrator, [10] | dependency type | Per event | Memory owner | **Proposal:** < 24 hours ([AS-14](01-requirements.md#as-14)) |
+| Projection repair time | Time from a detected projection inconsistency to repair | Orchestrator, [6] | projection type | Per event | Platform admin | **Proposal:** < 1 hour |
+| Automatic-action rollback rate | Share of automatic maintenance actions rolled back (failed or reversed by an owner) | Orchestrator, [9] | action type | Monthly | Memory owner | Informational; a rising rate puts the action's place on the low-risk list under review |
+| Canonical-rewrite violations | Maintenance changes to [2] or [5] made without an owner decision and outside the low-risk list | [9] audit | — | Continuous | Security reviewer | Zero ([REQ-ME-29](01-requirements.md#req-me-29)) |
 
 ### 3.5 Delivery (read path)
 
@@ -274,6 +280,7 @@ Each acceptance scenario in [01-requirements.md](01-requirements.md) [§9](01-re
 | [AS-11](01-requirements.md#as-11) Self-reinforcing model claim | Repeated and summarized assistant claim stays continuity only; grounding blocked until independent evidence | Ineligible-grounding attempts blocked, projection-policy parity |
 | [AS-12](01-requirements.md#as-12) Protected regression | Scripted candidate with better average and one protected failure is blocked; shadow output never reaches production | Protected-regression count, promotion evidence sufficiency, shadow coverage |
 | [AS-13](01-requirements.md#as-13) Session continuity | Scripted compaction and handoff; resumed agent neither repeats the irreversible step nor loses the constraint; checkpoint absent from organizational retrieval | Resume success, repeated-work rate after resume, lost-constraint failures, checkpoint completeness |
+| [AS-14](01-requirements.md#as-14) Dependency change | Scripted tool change yields owner proposals for the Skill and units, automatic projection repair, and a rollback path for each action | Skill-drift detection, projection repair time, canonical-rewrite violations |
 
 ## 5. Phase gates
 
