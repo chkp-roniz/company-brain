@@ -54,7 +54,7 @@ Seven classes stay distinct. Memory objects are derived from evidence and linked
 | Policy | A human-owned, authoritative constraint | Human-edited only | owner, precedence, scope of application, version |
 | Authoritative reference | Pointer to the official source of truth | Reference | system, locator, last verified |
 
-Related derived objects: a **Reconstruction** (interpretation of observed work, linked step by step to evidence); a **Skill Candidate** (a generalized procedure that has not passed the [REQ-ME-12](01-requirements.md#req-me-12) gates); a **code-graph entity or relation** (tagged with repository, commit, and builder version); **decision-lineage records** (Proposal, Decision, Execution, Outcome; [§2.1](#21-decision-lineage)).
+Related derived objects: a **Reconstruction** (interpretation of observed work, linked step by step to evidence); a **Skill Candidate** (a generalized procedure that has not passed the [REQ-ME-12](01-requirements.md#req-me-12) gates); a **code-graph entity or relation** (tagged with repository, commit, and builder version); **decision-lineage records** (Proposal, Decision, Execution, Outcome; [§2.1](#21-decision-lineage)); a **Context Delivery Receipt** (immutable record of one composed delivery; [§2.4](#24-context-delivery-receipt)).
 
 Required relationships: `derived_from`, `supported_by`, `contradicts`, `supersedes`, `relevant_to`, `promoted_from`, and the decision-lineage links in [§2.1](#21-decision-lineage). Relationships are typed, directional, versioned, and carry provenance and confidence.
 
@@ -71,11 +71,15 @@ A trajectory records decisions and outcomes as evidence events. Decision lineage
    | Proposal   |<--decision_selects-| Decision   |<--implements-| Execution  |--resulted_in->| Outcome    |
    | what was   |                    | what an    |              | what       |               | what was   |
    | suggested  |                    | authorized |              | actually   |               | observed   |
-   +-----+------+                    | actor chose|              | ran        |               +------------+
-         |                           +------------+              +------------+
-         | informed_by   exposure only: the unit version was available,
-         v               not proof that it changed the Proposal
-   memory unit versions
+   +--+--+--+--+                    | actor chose|              | ran        |               +------------+
+      |  |                           +------------+              +------------+
+      |  | informed_by        exposure only: unit versions available
+      |  v
+      |  memory unit versions
+      |
+      | informed_by_receipt   exposure only: the exact delivery that preceded
+      v                       the Proposal; not influence or causation
+   Context Delivery Receipt ([§2.4](#24-context-delivery-receipt))
 
    a Proposal no Decision selects stays in history, never shown as the decision taken
    Outcome with a criterion checked --> VERIFIED OUTCOME; without one --> unverified observation
@@ -85,7 +89,7 @@ A trajectory records decisions and outcomes as evidence events. Decision lineage
 
 | Record | Created by | Required attributes |
 |---|---|---|
-| Proposal | [3], at a decision boundary | proposer (person or agent), content, time, evidence; `informed_by` links to the memory unit versions supplied at that moment |
+| Proposal | [3], at a decision boundary | proposer (person or agent), content, time, evidence; `informed_by` links to the memory unit versions supplied at that moment; `informed_by_receipt` links to the preceding Context Delivery Receipt when one exists |
 | Decision | [3], at a decision boundary | deciding actor, authority, the Proposal selected (if any), time, evidence |
 | Execution | [3], from tool calls and results | executing identity, the Decision it implements, what ran, time, evidence |
 | Outcome | [10], from later evidence | evaluator, acceptance criterion, result, uncertainty, verified flag, time, evidence |
@@ -96,7 +100,7 @@ Rules:
 - An Outcome is verified only when an evaluator applied an explicit acceptance criterion. A positive signal without one is an unverified observation.
 - Lineage records are append-only. A correction is a new record linked to the original; nothing is overwritten.
 - Edges point from the later or dependent record to the earlier one or to its actor; only `resulted_in` points forward. Actors are linked by `proposed_by`, `decided_by`, `executed_by`, and `evaluated_by`; the Decision-to-Proposal edge is `decision_selects`.
-- `informed_by` records exposure only. It is the starting point for attribution, not its result ([§11](#11-evaluation-loop)).
+- `informed_by` and `informed_by_receipt` record exposure only. They are the starting point for attribution, not its result ([§11](#11-evaluation-loop)).
 - Lineage records follow the visibility of their most restrictive evidence ([REQ-GOV-10](01-requirements.md#req-gov-10)).
 
 ### 2.2 Retention, retrieval, and grounding
@@ -180,6 +184,51 @@ Rules:
 - **Crash safety.** [8] updates the checkpoint after each material state change and on a timer, not only at end triggers. Each irreversible or externally visible action is journaled with its intent and idempotency key before it runs and with its result after. On resume after an abrupt end, the checkpoint and journal are reconciled with external state; an action with an intent and no result is checked, never re-run blindly. Checkpoint age is recorded against the task class's recovery point ([REQ-ME-31](01-requirements.md#req-me-31)).
 - Working-memory state, checkpoints, and journals expire with their scope under [9] retention rules.
 
+### 2.4 Context Delivery Receipt
+
+Every proactive injection, exploratory read, and transcript review freezes an immutable **Context Delivery Receipt** ([REQ-OUT-19](01-requirements.md#req-out-19)). The receipt is the proof of what the consumer was given; the selection log ([REQ-OUT-08](01-requirements.md#req-out-08)) is incorporated into it, not a substitute for it.
+
+```
+   request (identity, purpose, task, query)
+            |
+            v
+   [7] resolve . filter . rank . compose . digest
+            |
+            +--> delivered representation (L0/L1 or review packet)
+            |
+            +--> Context Delivery Receipt (append-only)
+                   id . versions . authority . times
+                   selected unit versions . grounding decisions
+                   coverage manifest . content digest . status
+            |
+            +--> later Proposal --informed_by_receipt--> receipt
+                   (exposure only; never causation)
+```
+
+| Field group | Minimum contents |
+|---|---|
+| Identity | Receipt ID and version; requester and agent identities; authorization boundary; granted scope |
+| Request | Purpose class; task identity; query representation; reference time (`as_of`) |
+| Time bounds | Creation time; usable-until; retained-until |
+| Versions | Retrieval-policy, model, projection, and composer versions |
+| Selection | Selected canonical unit IDs and exact unit versions; per-unit grounding decision and permitted-use label; inclusion, omission, truncation, and redaction reasons |
+| Epistemic state | Coverage Manifest ([REQ-OUT-20](01-requirements.md#req-out-20)); overall staleness; query-resolution outcomes ([REQ-OUT-21](01-requirements.md#req-out-21)) |
+| Integrity | Content digest of the delivered representation; status `complete`, `partial`, `degraded`, or `withheld` |
+
+**Coverage Manifest** ([REQ-OUT-20](01-requirements.md#req-out-20)). For each relevant source or source class: status (`complete`, `partial`, `stale`, `unavailable`, `not_connected`, `not_requested`, `unknown`); last successful synchronization; examined time window; enumerated or searched only; permission-safe degraded reason. Coverage feeds grounding and fail-closed decisions in [7]; it is not operations-only telemetry.
+
+**Query-resolution outcomes** ([REQ-OUT-21](01-requirements.md#req-out-21)). When disclosure allows, an unknown result keeps a reason code: `no_match`, `ambiguous_identity`, `source_not_connected`, `source_stale`, `source_unavailable`, `withheld_by_policy`, `retrieval_failed`, or `cannot_prove`. Resolved subjects, ambiguous candidates, unmatched terms, and the interpreted time window travel with the response. Restricted matches are neither revealed nor counted.
+
+**Evidence accessibility** ([REQ-OUT-22](01-requirements.md#req-out-22)). Each delivered claim distinguishes: provenance known; supporting evidence exists; evidence verified by an authorized identity; current consumer may inspect evidence; evidence unavailable, expired, or withheld. Cross-scope sharing may expose an attributed claim without original source content; the delivery then states that original evidence is not inspectable. A claim without sufficient inspectable evidence cannot ground a consequential action unless policy permits an authorized attestation, recorded on the receipt with authority, scope, and reason.
+
+Rules:
+
+- Receipts are append-only. Correction creates a new receipt or a linked correction record; the original is never rewritten.
+- Permission filtering applies to receipt metadata as well as content. Omitted or restricted units MUST NOT be inferable from reasons visible to an unauthorized requester ([REQ-OUT-12](01-requirements.md#req-out-12)).
+- While underlying unit versions and evidence remain retained, the content digest MUST be sufficient to reconstruct or verify the delivered representation.
+- Retention of receipts follows [9] retention and legal-hold rules; usable-until may be shorter than retained-until.
+- Speech-act class of inputs that feed processing is preserved separately ([REQ-PR-16](01-requirements.md#req-pr-16)); a receipt never turns a question or agent report into a verified outcome.
+
 ## 3. Logical architecture
 
 Ten components. The write path runs left to right along the top; the read path runs right to left below it; the evaluation loop closes the cycle.
@@ -224,14 +273,14 @@ Ten components. The write path runs left to right along the top; the read path r
 |---|---|---|---|---|
 | [1] | Source adapters | Connect systems of record and work surfaces; emit normalized evidence events carrying identity, time, source, and authorization context. Includes harness exporters, repository, ticket, document, and database connectors, the code-graph adapter, the memory import adapter, and the work-observation recorder | Write-once ingest API into [2] | [REQ-IN-01…16](01-requirements.md#req-in-01), [REQ-GOV-03](01-requirements.md#req-gov-03) |
 | [2] | Evidence and trajectory log | Immutable, append-only store of events and trajectories; the audit root for everything derived; holds integrity attestations for verified outcome records ([§10.1](#101-record-integrity-and-attestation)) | Write-once ingest; read by [3], [10], and by L2 evidence expansion | [REQ-IN-03](01-requirements.md#req-in-03), [REQ-IN-06](01-requirements.md#req-in-06), [REQ-PR-04](01-requirements.md#req-pr-04), [REQ-GOV-05](01-requirements.md#req-gov-05), [REQ-SEC-16](01-requirements.md#req-sec-16) |
-| [3] | Experience processor | Boundary detection, reflection, extraction, classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…15](01-requirements.md#req-pr-01) |
+| [3] | Experience processor | Boundary detection, reflection, extraction, speech-act and content classification, deduplication, contradiction detection, generalization of reconstructions; produces candidate units | Consumes [2]; emits candidates to [4]; calls approved LLM endpoints only ([REQ-SEC-08](01-requirements.md#req-sec-08)) | [REQ-PR-01…16](01-requirements.md#req-pr-01) |
 | [4] | Admission and promotion service | Validation, sensitivity handling, ownership, scope and policy gates; versioned admission; promotion and demotion workflows; Skill Candidate gating; signs admission decisions and verifies attestations before promotion | Consumes candidates; writes to [5]; owner review queue | [REQ-PR-10](01-requirements.md#req-pr-10), [REQ-ME-10](01-requirements.md#req-me-10), [REQ-ME-12](01-requirements.md#req-me-12), [REQ-SC-01…06](01-requirements.md#req-sc-01), [REQ-GOV-02…04](01-requirements.md#req-gov-02), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [5] | Managed memory store | Canonical, itemized, versioned, linked memory units with lifecycle state; a separate working-memory area for temporary state, continuity checkpoints, and action journals ([§2.3](#23-working-memory-and-continuity)); attestation and verification status per high-impact unit version ([§10.1](#101-record-integrity-and-attestation)) | Versioned CRUD; change feed to [6]; rollback API | [REQ-ME-01…35](01-requirements.md#req-me-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
 | [6] | Retrieval projection layer | Derived indexes (vector, graph, full-text, relational) rebuilt from [5]; invalidated on any canonical change; repaired by the maintenance orchestrator ([§8.1](#81-memory-maintenance-orchestrator)) | Change feed from [5]; query API for [7] | [REQ-OUT-10](01-requirements.md#req-out-10), [§7](#7-canonical-memory-and-retrieval-projections) |
-| [7] | Retrieval and context composer | Objective inference, deterministic filtering (including grounding eligibility and integrity verification), ranking, budgeted selection, L0/L1 composition, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…18](01-requirements.md#req-out-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
-| [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool; collect outcome signals; trigger continuity checkpoints at session end, handoff, reset, and compaction, and update them during work; journal irreversible actions | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17) |
+| [7] | Retrieval and context composer | Objective and query resolution, deterministic filtering (including grounding eligibility, evidence accessibility, and integrity verification), ranking, budgeted selection, L0/L1 composition, Coverage Manifest, immutable Context Delivery Receipt, selection logging; transcript pitfall review mode | Retrieval API called by [8]; reads [6], [5], [2] | [REQ-OUT-01…22](01-requirements.md#req-out-01), [REQ-SEC-16](01-requirements.md#req-sec-16) |
+| [8] | Output adapters | Harness hook handlers, MCP server, APIs, UI, export; deliver context in-tool with receipt identity; collect outcome signals linked to the pre-turn receipt; trigger continuity checkpoints at session end, handoff, reset, and compaction, and update them during work; journal irreversible actions | `SessionStart` / `UserPromptSubmit` equivalents; MCP tools; REST or gRPC | [REQ-OUT-04…07](01-requirements.md#req-out-04), [REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-17](01-requirements.md#req-out-17), [REQ-OUT-19](01-requirements.md#req-out-19) |
 | [9] | Governance control plane | Identity, permissions, policy objects and precedence, audit, expiry, deletion, rollback, deprecation transitions; managed integrity and authenticity controls (signing identities, trust roots, rotation, revocation; [§10.1](#101-record-integrity-and-attestation)); governs the maintenance orchestrator, its owned action classes and low-risk list, and legal holds that take precedence over maintenance ([§8.1](#81-memory-maintenance-orchestrator)) | Consulted by every component; policy and owner administration; management dashboard | [REQ-GOV-01…12](01-requirements.md#req-gov-01), REQ-SEC-* , [REQ-NFR-11](01-requirements.md#req-nfr-11) |
-| [10] | Evaluation loop | Join selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute by evidence level (exposure, influence, causal) along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline | Reads [8] selection logs and [2] outcomes; writes utility to [5] | [REQ-EV-01…19](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
+| [10] | Evaluation loop | Join Context Delivery Receipts and selection logs with outcomes; verify outcomes against explicit acceptance criteria; attribute by evidence level (exposure, influence, causal) along decision lineage; update utility per version; trigger weakening or suspension; manage safe canaries; run shadow evaluation and risk-calibrated promotion evidence; net value accounting; research-agent baseline; starter evaluation protocol | Reads [8] receipts and [2] outcomes; writes utility to [5] | [REQ-EV-01…20](01-requirements.md#req-ev-01), [REQ-NFR-10](01-requirements.md#req-nfr-10) |
 
 Interfaces between components MUST be tool-independent. No component may assume a specific agent harness ([REQ-NFR-06](01-requirements.md#req-nfr-06)).
 
@@ -336,48 +385,53 @@ Two modes. The **proactive** path is primary: memory arrives before the model re
    HARNESS                RETRIEVAL SERVICE (proactive read path)
    lifecycle hook
    SessionStart /         +---------------------------------------------------------+
-   UserPromptSubmit       |  1. infer objective from prompt + session/task state    |
+   UserPromptSubmit       |  1. resolve query + infer objective from prompt/state   |
                           |  2. candidate recall: semantic . structural . temporal  |
    prompt + task/ ------->|     . scope signals                                     |
    session state          |  3. DETERMINISTIC FILTERS FIRST: identity, permissions, |
-                          |     policy, validity, authority, explicit resource scope|
+                          |     policy, validity, authority, resource scope,        |
+                          |     grounding eligibility, evidence accessibility       |
                           |  4. rank: relevance . confidence . freshness . utility  |
                           |  5. select smallest set that fits the context budget    |
                           |     (empty result is valid; unknown != permitted)       |
-                          |  6. compose L0/L1 with provenance and confidence        |
-                          |  7. log selection: units, query form, filters, reasons  |
+                          |  6. compose L0/L1 with provenance, access state,        |
+                          |     and Coverage Manifest                               |
+                          |  7. freeze Context Delivery Receipt (digest + status)   |
+                          |  8. log selection inside the receipt                    |
                           +----------------------------+----------------------------+
-                                                       |  context injected BEFORE
+                                                       |  context + receipt BEFORE
                                                        v  the model starts reasoning
                                         +------------------------------+
                                         | REASONING MODEL / AGENT      |
                                         | acts with injected context;  |
                                         | may call MCP tools to        |
-                                        | inspect sources, expand L2,  |
-                                        | report outcome               |
+                                        | inspect permitted evidence,  |
+                                        | expand L2, report outcome    |
                                         +--------------+---------------+
                                                        |
                                                        v
-                                        OUTCOME: helped / misled / ignored / corrected
+                                        OUTCOME linked to pre-turn receipt
+                                        helped / misled / ignored / corrected
                                         -> recorded as new evidence (feeds Input)
 ```
 
 Steps (REQ-OUT-*):
 
-1. Infer the current session objective and constraints from the prompt plus available task and session state (composition per [OD-01](01-requirements.md#od-01)).
-2. Retrieve candidates by semantic, structural, temporal, and scope signals from [6].
-3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, per-request grounding eligibility, and integrity verification of high-impact records **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18), [REQ-SEC-16](01-requirements.md#req-sec-16)). A record that fails verification is quarantined and dropped ([§10.1](#101-record-integrity-and-attestation)). Units that may be retrieved but not used for grounding in this request stay in the set with a permitted-use label.
+1. Resolve the request: subjects, ambiguous candidates, unmatched terms, and time window; infer the current session objective and constraints from the prompt plus available task and session state (composition per [OD-01](01-requirements.md#od-01), [REQ-OUT-21](01-requirements.md#req-out-21)).
+2. Retrieve candidates by semantic, structural, temporal, and scope signals from [6]. Build the Coverage Manifest for relevant sources ([REQ-OUT-20](01-requirements.md#req-out-20)).
+3. Enforce identity, permissions, policy, validity, authority, explicit resource scope, per-request grounding eligibility, evidence accessibility, and integrity verification of high-impact records **before** ranking ([REQ-OUT-18](01-requirements.md#req-out-18), [REQ-OUT-22](01-requirements.md#req-out-22), [REQ-SEC-16](01-requirements.md#req-sec-16)). A record that fails verification is quarantined and dropped ([§10.1](#101-record-integrity-and-attestation)). Units that may be retrieved but not used for grounding in this request stay in the set with a permitted-use label. Coverage and staleness constrain grounding: a consequential action that needs a stale or unavailable source fails closed or escalates.
 4. Rank by relevance, confidence, freshness, and demonstrated utility for this version, task class, and harness.
-5. Select the smallest set that fits the declared context budget. An empty set is a legitimate answer.
-6. Present L0 or L1 with source, confidence, usage boundaries, and grounding status, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16)). Units with a non-grounding label are marked so that neither a person nor a model cites them as fact.
-7. Allow the consumer to expand to L2 and inspect the underlying evidence.
-8. Record selection details, including each unit's per-request grounding decision, purpose, and label ([REQ-OUT-08](01-requirements.md#req-out-08)) and, later, downstream use and outcome signals ([REQ-EV-10](01-requirements.md#req-ev-10)).
+5. Select the smallest set that fits the declared context budget. An empty set is a legitimate answer; when disclosure allows, attach a reason-coded unknown ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-21](01-requirements.md#req-out-21)).
+6. Present L0 or L1 with source, confidence, usage boundaries, grounding status, and evidence-accessibility state, framed as advisory data ([REQ-OUT-16](01-requirements.md#req-out-16), [REQ-OUT-15](01-requirements.md#req-out-15)). Units with a non-grounding label are marked so that neither a person nor a model cites them as fact. Include the Coverage Manifest.
+7. Allow the consumer to expand to L2 and inspect underlying evidence only when evidence accessibility permits ([REQ-OUT-22](01-requirements.md#req-out-22)).
+8. Freeze an immutable Context Delivery Receipt with the content digest, status, selected versions, grounding decisions, coverage, and selection reasons ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-OUT-08](01-requirements.md#req-out-08)). Later downstream use and outcome signals link back to that receipt ([REQ-EV-10](01-requirements.md#req-ev-10)).
 
 Design rules:
 
 - Interactive retrieval reads precomputed projections and L0/L1 representations. It never triggers expensive composition on every turn ([REQ-OUT-14](01-requirements.md#req-out-14)).
-- Filters are deterministic and testable without a model in the loop. A ranking change can never widen what a caller is allowed to see.
+- Filters are deterministic and testable without a model in the loop. A ranking change can never widen what a caller is allowed to see, and receipt metadata cannot leak omitted or restricted content.
 - The retrieval service accepts the prompt and state; it does not require the harness to understand memory internals. Harness-specific logic lives in [8], not in [7].
+- After-turn contributions from [8] and [10] reference the pre-turn receipt identity so exposure remains reconstructable without inventing causation.
 
 ### 5.1 Transcript pitfall review
 
@@ -389,8 +443,8 @@ Steps:
 2. [7] derives the objectives, tools, claims, and decisions in the transcript. This replaces step 1 of the proactive path with inference from the whole conversation.
 3. Candidate recall from [6] and deterministic filters run exactly as in steps 2 and 3 of the proactive path.
 4. Each surviving item is classified as: an applicable lesson; a known pitfall the work is heading into or has hit; a contradiction between a claim or action in the transcript and admitted memory; or a policy conflict. A policy conflict is shown as a constraint with its human owner, never paraphrased as advice ([REQ-GOV-02](01-requirements.md#req-gov-02)).
-5. [7] selects the smallest set that fits the budget and composes L0 or L1 with source, confidence, and usage bounds, framed as advisory data. An empty or fully filtered result is reported as unknown.
-6. The selection is logged, and what the agent did next (changed course, ignored, corrected) is recorded as outcome signals for the evaluation loop.
+5. [7] selects the smallest set that fits the budget and composes L0 or L1 with source, confidence, usage bounds, coverage, and evidence-accessibility state, framed as advisory data. An empty or fully filtered result is reported as unknown with a reason code when disclosure allows.
+6. [7] freezes a Context Delivery Receipt; what the agent did next (changed course, ignored, corrected) is recorded as outcome signals linked to that receipt for the evaluation loop.
 
 Rules: no new component; the review never writes to [5]; a contradiction it finds is returned to the consumer and recorded as an evidence event, with owner routing in the contradiction triage flow (F3); a live transcript is reviewed at checkpoints, not on every turn ([REQ-OUT-14](01-requirements.md#req-out-14)).
 
@@ -615,12 +669,12 @@ Rules:
 
 ## 11. Evaluation loop
 
-For every run the loop records: the complete set of units supplied (ids and versions), the query form, the filters, and the reasons for inclusion and omission ([REQ-OUT-08](01-requirements.md#req-out-08), [REQ-EV-06](01-requirements.md#req-ev-06)); the consumer's model, harness, task class, and scope; outcome signals (helped, misled, ignored, corrected), implicit and explicit.
+For every run the loop records: the Context Delivery Receipt (selected unit ids and versions, content digest, coverage, query form, filters, inclusion and omission reasons) ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-OUT-08](01-requirements.md#req-out-08), [REQ-EV-06](01-requirements.md#req-ev-06)); the consumer's model, harness, task class, and scope; outcome signals (helped, misled, ignored, corrected), implicit and explicit, linked to the pre-turn receipt.
 
 What the loop does:
 
 - updates utility history on each supplied unit version, scoped to task class, audience, model, harness, and context ([REQ-EV-03](01-requirements.md#req-ev-03))
-- applies attribution rather than crediting or blaming every supplied unit for the whole outcome ([REQ-EV-06](01-requirements.md#req-ev-06)); where a decision-lineage chain exists, follows it from the Outcome through the Execution and Decision to the Proposal, and treats the Proposal's `informed_by` units as exposure only ([§2.1](#21-decision-lineage)). Credit or blame needs evidence of influence; a causal claim needs a controlled comparison (A/B, shadow, or replay). Each attribution records its level (exposure, influence, causal) and confidence; an outcome with no evidence of influence stays unattributed
+- applies attribution rather than crediting or blaming every supplied unit for the whole outcome ([REQ-EV-06](01-requirements.md#req-ev-06)); where a decision-lineage chain exists, follows it from the Outcome through the Execution and Decision to the Proposal, and treats the Proposal's `informed_by` units and `informed_by_receipt` link as exposure only ([§2.1](#21-decision-lineage), [§2.4](#24-context-delivery-receipt)). Credit or blame needs evidence of influence; a causal claim needs a controlled comparison (A/B, shadow, or replay). Each attribution records its level (exposure, influence, causal) and confidence; an outcome with no evidence of influence stays unattributed
 - verifies an outcome only against an explicit acceptance criterion and records the evaluator and uncertainty; a positive signal without a criterion stays an unverified observation and counts as weaker evidence ([REQ-ME-14](01-requirements.md#req-me-14))
 - triggers weakening or suspension when harmful signals accumulate against a version ([AS-03](01-requirements.md#as-03))
 - never lets a new or materially changed version inherit its predecessor's utility ([REQ-EV-04](01-requirements.md#req-ev-04))
@@ -721,12 +775,36 @@ Shadow run record (one per arm per run):
 | Results | Applicability, abstention, agreement, execution validity, verified outcome, negative transfer, uncertainty |
 | Flags | Side-effect violation; condition mismatch (not counted) |
 
+### 11.4 Starter evaluation protocol
+
+Before implementing a new memory or retrieval capability, a pilot SHOULD run a starter evaluation ([REQ-EV-20](01-requirements.md#req-ev-20)). It is a diagnostic, not a production gate.
+
+```
+   ~20 dated questions from real work
+          |
+          +--> expected current truth
+          +--> stale values that must NOT be presented as current
+          |
+   BASELINE: fresh sessions without the new capability
+          |
+   TREATMENT: same agent, model, source snapshot, tool budget, task conditions
+          |
+   held-out split (rotated after inspection)
+          |
+   measure: answer quality . tool calls . latency . cost
+          |
+   human calibration of any model judge
+          |
+   --> diagnostic signal only; security, privacy, scale,
+       recovery, and verified-outcome gates remain separate
+```
+
 ## 12. Integration surfaces
 
 | Surface | Purpose | Notes |
 |---|---|---|
-| Harness lifecycle hooks | Proactive retrieval on `SessionStart` and `UserPromptSubmit` equivalents; outcome capture on session end or task completion; continuity checkpoint on session end, handoff, reset, or compaction ([§2.3](#23-working-memory-and-continuity)) | The primary read path. Hook handlers live in [8]; they pass prompt and state to [7] and inject the composed context. |
-| MCP server | Exploratory access: inspect a unit's source, expand to L2, list related units, report an outcome, review a transcript | Illustrative tools: `memory.explore`, `memory.inspect_source`, `memory.expand_evidence`, `memory.report_outcome`, `memory.review_transcript`. Names are not normative. Never the only delivery path. |
+| Harness lifecycle hooks | Proactive retrieval on `SessionStart` and `UserPromptSubmit` equivalents; outcome capture on session end or task completion linked to the pre-turn receipt; continuity checkpoint on session end, handoff, reset, or compaction ([§2.3](#23-working-memory-and-continuity)) | The primary read path. Hook handlers live in [8]; they pass prompt and state to [7], inject the composed context, and surface the receipt identity. |
+| MCP server | Exploratory access: inspect a unit's source when permitted, expand to L2, list related units, report an outcome, review a transcript; each call yields a receipt | Illustrative tools: `memory.explore`, `memory.inspect_source`, `memory.expand_evidence`, `memory.report_outcome`, `memory.review_transcript`. Names are not normative. Never the only delivery path. |
 | Source adapters | Pull or receive evidence from systems of record and work surfaces | The only components that touch external systems; run under scoped identities ([REQ-SEC-10](01-requirements.md#req-sec-10)). |
 | Code-graph adapter | Ingest code graphs next to the code | Records repository, commit, and builder version on every entity and relation ([REQ-IN-15](01-requirements.md#req-in-15)); invalidates derived units when the code changes. |
 | Work-observation recorder | Observe real work on the workstation and emit evidence events | On-device redaction; visible recording with pause, stop, discard; evidence goes only to organization-controlled ingest. |
@@ -895,7 +973,11 @@ An alternative framing describes this system as a "context layer": a service tha
 | Memory as unintended policy | A frequently seen lesson starts steering every agent as if it were a rule | Separation of duties, policy precedence, advisory framing ([REQ-PR-09](01-requirements.md#req-pr-09), [REQ-GOV-02](01-requirements.md#req-gov-02), [REQ-OUT-16](01-requirements.md#req-out-16)) |
 | Local mistake goes global | One team's wrong workaround is promoted because it was repeated often | Promotion gates on evidence, ownership, sensitivity, permission; never on frequency ([REQ-SC-02](01-requirements.md#req-sc-02), [REQ-SC-03](01-requirements.md#req-sc-03)) |
 | Projection drift | The graph or index still returns a claim whose canonical unit was weakened or deleted | Mandatory invalidation on canonical change ([§7](#7-canonical-memory-and-retrieval-projections)) |
-| Absence read as permission | Empty retrieval is taken to mean "no prior decision, no constraint" | Unknown semantics; fail closed for authority-requiring actions ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)) |
+| Absence read as permission | Empty retrieval is taken to mean "no prior decision, no constraint" | Unknown semantics with reason codes; fail closed for authority-requiring actions ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13), [REQ-OUT-21](01-requirements.md#req-out-21)) |
+| Incomplete knowledge presented as complete | Answer omits that a source was stale, unavailable, or not connected | Coverage Manifest on every read; partial or degraded receipt status; fail closed when required evidence is missing ([REQ-OUT-20](01-requirements.md#req-out-20), [REQ-OUT-19](01-requirements.md#req-out-19)) |
+| Provenance mistaken for inspectable evidence | A shared attributed claim is treated as if the consumer can open the private source | Evidence-accessibility state on every claim; grounding blocked without inspectable evidence or permitted attestation ([REQ-OUT-22](01-requirements.md#req-out-22)) |
+| Unreconstructable delivery | An outcome is attributed to unit versions without proving the exact composed context | Immutable Context Delivery Receipt with content digest and `informed_by_receipt` exposure link ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-PR-15](01-requirements.md#req-pr-15)) |
+| Speech-act collapse | A question, request, or agent report is admitted or grounded as if it were a verified fact | Speech-act preservation at processing and admission ([REQ-PR-16](01-requirements.md#req-pr-16), [REQ-ME-17](01-requirements.md#req-me-17)) |
 | Reputation inheritance | A materially changed lesson keeps the utility score of the version that earned it | Per-version utility; no inheritance ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04)) |
 | Retrieval that sounds relevant but does not help | High retrieval rates, no outcome improvement | Utility measured on outcomes, not citations ([REQ-EV-01](01-requirements.md#req-ev-01), [REQ-EV-02](01-requirements.md#req-ev-02)) |
 | Leakage through derivation | A conclusion built partly from restricted sources is shown to a wider audience | Most-restrictive-source rule until an owner declassifies ([REQ-GOV-10](01-requirements.md#req-gov-10), [OD-04](01-requirements.md#od-04)) |
@@ -951,7 +1033,11 @@ A proposal or implementation that violates any of these is non-compliant regardl
 - [ ] Deterministic identity, permission, policy, validity, authority, scope, and per-request grounding-eligibility filters run before ranking ([REQ-OUT-06](01-requirements.md#req-out-06), [REQ-OUT-18](01-requirements.md#req-out-18)).
 - [ ] Memory reaches the model before it reasons; MCP is exploratory, not the only path ([REQ-OUT-04](01-requirements.md#req-out-04), [REQ-OUT-07](01-requirements.md#req-out-07)).
 - [ ] Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative ([§7](#7-canonical-memory-and-retrieval-projections), [REQ-OUT-18](01-requirements.md#req-out-18)).
-- [ ] Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)).
+- [ ] Empty, filtered, or unavailable results mean unknown, with a reason code when disclosure allows; authority-requiring actions fail closed ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13), [REQ-OUT-21](01-requirements.md#req-out-21)).
+- [ ] Every context delivery produces an immutable, permission-filtered Context Delivery Receipt sufficient to verify the delivered representation ([REQ-OUT-19](01-requirements.md#req-out-19)).
+- [ ] Every retrieval response carries a Coverage Manifest that feeds grounding and fail-closed decisions ([REQ-OUT-20](01-requirements.md#req-out-20)).
+- [ ] Provenance does not imply evidence visibility; inaccessible evidence cannot ground consequential actions without a permitted attestation ([REQ-OUT-22](01-requirements.md#req-out-22)).
+- [ ] Speech-act classes are preserved; questions, requests, and agent reports are not treated as verified facts by storage or repetition ([REQ-PR-16](01-requirements.md#req-pr-16)).
 - [ ] Policies are human-owned and take deterministic precedence everywhere ([REQ-GOV-02](01-requirements.md#req-gov-02), [REQ-GOV-11](01-requirements.md#req-gov-11)).
 - [ ] Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression ([REQ-EV-03](01-requirements.md#req-ev-03), [REQ-EV-04](01-requirements.md#req-ev-04), [REQ-EV-16](01-requirements.md#req-ev-16), [REQ-EV-17](01-requirements.md#req-ev-17)).
 - [ ] Forgetting preserves history; deletion is a separate governed operation ([REQ-ME-08](01-requirements.md#req-me-08)).

@@ -1,6 +1,6 @@
 # Company Brain — Foundation Documents
 
-A Company Brain captures the **experience** created during real work (what was tried, what failed, what was corrected, why a decision changed), converts it into **governed memory**, and delivers the **minimum sufficient context** to the right person or agent at the moment of decision or action. It is not a search layer over documents.
+A Company Brain captures the **experience** created during real work (what was tried, what failed, what was corrected, why a decision changed), converts it into **governed memory**, and delivers the **minimum sufficient context** to the right person or agent at the moment of decision or action. Every delivery leaves an immutable retrieval receipt and answer-level source coverage, so later outcomes can be tied to the exact context that was given. Provenance may be known even when evidence is not inspectable by the current consumer. It is not a search layer over documents.
 
 These documents are organization-neutral. They contain no company names, people, hosts, addresses, or internal services, and can be used as the starting point for any organization building a Company Brain.
 
@@ -41,10 +41,10 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 | [4] | Admission and promotion service | Validate, handle sensitivity, assign owners, apply scope and policy gates; versioned admission |
 | [5] | Managed memory store | Canonical, versioned, linked, scoped units with lifecycle state; temporary working-memory state, crash-safe continuity checkpoints, and an action journal, kept apart from shared memory; maintained by a governed orchestrator that proposes changes, never silently rewrites, commits only on the expected version, and leaves redirects after merges |
 | [6] | Retrieval projections | Derived vector, graph, text, and relational indexes; rebuilt and invalidated from [5] |
-| [7] | Retrieval and context composer | Deterministic filters, ranking, budgeted selection, L0/L1 composition, selection logging |
-| [8] | Output adapters | Harness hooks, MCP, APIs, UI; deliver in-tool; collect outcome signals |
+| [7] | Retrieval and context composer | Deterministic filters, ranking, budgeted selection, L0/L1 composition, coverage manifest, immutable Context Delivery Receipt, selection logging |
+| [8] | Output adapters | Harness hooks, MCP, APIs, UI; deliver in-tool with receipt identity; collect outcome signals linked to the pre-turn receipt |
 | [9] | Governance control plane | Identity, permissions, policy precedence, audit, expiry, deletion, rollback; managed integrity and authenticity controls that stay verifiable across key rotation, revocation, and compromise; governs which maintenance action classes may run automatically and who owns each; legal holds take precedence over maintenance |
-| [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along decision lineage by evidence of influence, not mere exposure, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline |
+| [10] | Evaluation loop | Verify outcomes against explicit criteria, attribute them along decision lineage by evidence of influence, not mere exposure, join outcomes to Context Delivery Receipts, update utility per version, trigger weakening, run canaries and shadow evaluation, net value, baseline, starter evaluation |
 
 ## The ten rules that never bend
 
@@ -53,7 +53,7 @@ Suggested reading order: README → [01 §1–4](01-requirements.md#1-objective)
 3. Deterministic filters (identity, permission, policy, validity, authority, scope, grounding eligibility for this request's purpose) run before ranking.
 4. Memory reaches the model before it reasons; exploration tools are never the only path.
 5. Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
-6. Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed.
+6. Empty, filtered, or unavailable results mean unknown (with a reason code when disclosure allows); authority-requiring actions fail closed; every delivery leaves a permission-filtered receipt and coverage that travel with the answer.
 7. Policies are human-owned and take deterministic precedence everywhere.
 8. Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression.
 9. Forgetting preserves history; deletion is a separate governed operation.
