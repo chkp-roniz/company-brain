@@ -70,7 +70,7 @@ Processing also:
 - generalizes recorded procedures by intent toward native tools (CLIs, APIs, connectors) instead of click replay, and marks the steps that stay UI-bound ([REQ-PR-13](01-requirements.md#req-pr-13))
 - classifies every artifact from observed work as an Experience unit or a Skill Candidate, never as a Skill, durable knowledge, or policy ([REQ-PR-14](01-requirements.md#req-pr-14))
 - links what was proposed, what was decided, what was executed, and what resulted into a decision-lineage chain, one stage at a time and only as far as the evidence goes ([REQ-PR-15](01-requirements.md#req-pr-15))
-- preserves speech-act class so a question, request, proposal, assertion, commitment, agent report, observed event, or verified outcome never collapses into a fact merely because it was stored ([REQ-PR-16](01-requirements.md#req-pr-16))
+- preserves `speech_act` and `evidence_status` as separate fields so a question, request, or reported assertion never collapses into independently verified fact merely because it was stored ([REQ-PR-16](01-requirements.md#req-pr-16))
 
 The executing agent proposes nothing to shared memory and writes nothing to it. Reflection, curation, and admission are separate roles with separate identities ([REQ-PR-09](01-requirements.md#req-pr-09)).
 
@@ -132,9 +132,9 @@ The budget is spent on L0 and L1 by default. L2 is pulled on request or when the
 
 **Permitted uses** ([REQ-OUT-18](01-requirements.md#req-out-18)): a unit that may be retrieved but not used for grounding in this request is delivered, if relevant, with a permitted-use label: `continuity` (what was said or done before), `hypothesis` (a lead to check), `disputed` (one side of an open contradiction), `audit` (context for a review), or `reflection` (input to learning). It can explain, suggest, or show disagreement; it cannot support a claim or an action. An action that needs grounding and finds only labeled non-grounding memory treats the grounding as unknown and fails closed. L0 and L1 views carry the same ceiling and labels as their canonical unit.
 
-**Query resolution and coverage** ([REQ-OUT-20](01-requirements.md#req-out-20), [REQ-OUT-21](01-requirements.md#req-out-21)): every read resolves the subjects, ambiguous candidates, unmatched terms, and time window the request names, then returns a Coverage Manifest for the relevant sources. Coverage and staleness travel with the answer and feed grounding and fail-closed decisions; they are not operations-only telemetry.
+**Query resolution and coverage** ([REQ-OUT-20](01-requirements.md#req-out-20), [REQ-OUT-21](01-requirements.md#req-out-21)): every read resolves the subjects, ambiguous candidates, unmatched terms, and time window the request names, then returns a Coverage Manifest that declares its coverage basis (accessible inventory, window, query scope, enumerated vs searched) and reports status for each source in that basis. `complete` means complete relative to that basis, not organizational completeness. Coverage and staleness travel with the answer and feed grounding and fail-closed decisions; they are not operations-only telemetry.
 
-**Context Delivery Receipt** ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-OUT-08](01-requirements.md#req-out-08)): every proactive injection, exploratory read, and transcript review produces an immutable receipt of exactly what was delivered, under which authority, from which source state, with which unit versions, and for how long the result remains usable. A later Proposal may link to that receipt as `informed_by_receipt`; the link proves exposure only.
+**Context Delivery Receipt** ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-OUT-08](01-requirements.md#req-out-08)): every proactive injection, exploratory read, and transcript review produces an immutable receipt of exactly what was delivered, under which authority, from which source state, with which unit versions, and for how long the result remains usable. An encrypted copy of the exact delivered payload is retained for a governed period so the delivery can be reconstructed; the digest verifies that copy. When a receipt preceded a Proposal, the Proposal MUST link to it as `informed_by_receipt`; the link proves exposure only.
 
 **Absence means unknown** ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13), [REQ-OUT-21](01-requirements.md#req-out-21)): an empty, filtered, or unavailable result is reported as unknown. It is never read as approval, as "no constraints apply", or as "no prior decision exists". When disclosure policy allows, the unknown keeps a reason code (`no_match`, `ambiguous_identity`, `source_not_connected`, `source_stale`, `source_unavailable`, `withheld_by_policy`, `retrieval_failed`, or `cannot_prove`). An action that requires authoritative memory or policy stops when that authority cannot be retrieved. The reason for absence may be withheld if revealing it would disclose restricted information ([REQ-OUT-12](01-requirements.md#req-out-12)).
 
@@ -331,21 +331,21 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 
 ### 6.13 Exact context reconstruction (AS-21)
 
-1. Before the agent reasons, the Brain injects a composed context and freezes a Context Delivery Receipt with unit versions, coverage, and a content digest.
-2. The agent makes a Proposal that links to that receipt as `informed_by_receipt`.
-3. Later, an Outcome is recorded. Reviewers can verify the delivered representation against the receipt digest while records remain retained.
+1. Before the agent reasons, the Brain injects a composed context, retains an encrypted copy of the exact payload, and freezes a Context Delivery Receipt with unit versions, coverage, and a content digest.
+2. The agent makes a Proposal that MUST link to that receipt as `informed_by_receipt`.
+3. Later, an Outcome is recorded. Reviewers can reconstruct the delivered payload while retention allows and verify it against the digest.
 4. The receipt link proves exposure only. Causal credit still needs influence or a controlled comparison.
 
 ### 6.14 Partial coverage and a shared claim (AS-22, AS-24)
 
 1. A task asks about a customer. CRM is current, email is stale, meetings are unavailable. The answer uses the current CRM facts and the Coverage Manifest reports each source separately; it does not claim completeness.
 2. A consequential action that needs the missing evidence fails closed or escalates.
-3. Separately, a private source supports a work fact shared to a wider scope. The wider consumer sees provenance and sharer attribution, sees that original evidence is not inspectable, and cannot ground a high-consequence action on it without permitted independent evidence or an authorized attestation in the receipt.
+3. Separately, a private source supports a work fact shared to a wider scope. The wider consumer sees provenance and sharer attribution, sees that original evidence is not inspectable, and cannot ground a high-consequence action on it without permitted independent evidence or a valid Authorized Evidence Attestation cited by id and version from the receipt.
 
 ### 6.15 Ambiguous identity and speech acts (AS-23, AS-25)
 
 1. A query names a person shared by two visible records; a third match sits outside the requester's scope. The two candidates are returned as ambiguous; the restricted record is neither revealed nor counted; the result stays unknown until resolved.
-2. An agent asks whether a payment was sent, later reports that it sent it, and a provider later confirms settlement. The question creates no fact; the agent report stays autobiographical or reported; only provider confirmation supports a verified completion claim. All three remain separately traceable.
+2. An agent asks whether a payment was sent, later reports that it sent it, and a provider later confirms settlement. The question is `speech_act=question` and creates no fact; the agent report stays `evidence_status=reported`; only provider confirmation raises `independently_verified`. All three remain separately traceable on both fields.
 
 ### 6.16 A crash in the middle of work (AS-18)
 
@@ -435,7 +435,7 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
 - Empty, filtered, or unavailable results mean unknown, with a reason code when disclosure allows; authority-requiring actions fail closed.
 - Every context delivery leaves an immutable, permission-filtered receipt sufficient to verify what was given; coverage travels with the answer.
-- Provenance does not imply evidence visibility; a claim without inspectable evidence cannot ground a consequential action unless policy permits an authorized attestation.
+- Provenance does not imply evidence visibility; a claim without inspectable evidence cannot ground a consequential action unless policy permits a valid Authorized Evidence Attestation cited by id and version.
 - Policies are human-owned and take deterministic precedence everywhere.
 - Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression.
 - Forgetting preserves history; deletion is a separate governed operation.
