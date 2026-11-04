@@ -70,6 +70,7 @@ Processing also:
 - generalizes recorded procedures by intent toward native tools (CLIs, APIs, connectors) instead of click replay, and marks the steps that stay UI-bound ([REQ-PR-13](01-requirements.md#req-pr-13))
 - classifies every artifact from observed work as an Experience unit or a Skill Candidate, never as a Skill, durable knowledge, or policy ([REQ-PR-14](01-requirements.md#req-pr-14))
 - links what was proposed, what was decided, what was executed, and what resulted into a decision-lineage chain, one stage at a time and only as far as the evidence goes ([REQ-PR-15](01-requirements.md#req-pr-15))
+- preserves `speech_act` and `evidence_status` as separate fields so a question, request, or reported assertion never collapses into independently verified fact merely because it was stored ([REQ-PR-16](01-requirements.md#req-pr-16))
 
 The executing agent proposes nothing to shared memory and writes nothing to it. Reflection, curation, and admission are separate roles with separate identities ([REQ-PR-09](01-requirements.md#req-pr-09)).
 
@@ -125,15 +126,19 @@ Memory decides what to keep, in what form, for how long, for whom, and when to s
        derived, rebuildable               confidence; decide what to open   governed, audited
 ```
 
-The budget is spent on L0 and L1 by default. L2 is pulled on request or when the task class requires it. Every L0 or L1 element carries the identity of its canonical unit, so the consumer can always reach the evidence ([REQ-OUT-15](01-requirements.md#req-out-15)).
+The budget is spent on L0 and L1 by default. L2 is pulled on request or when the task class requires it. Every L0 or L1 element carries the identity of its canonical unit. Provenance is always shown; inspectable evidence is shown only when the current consumer is permitted to open it ([REQ-OUT-15](01-requirements.md#req-out-15), [REQ-OUT-22](01-requirements.md#req-out-22)).
 
 **Advisory framing** ([REQ-OUT-16](01-requirements.md#req-out-16)): delivered memory is marked as advisory data with provenance and bounds. Neither humans nor models should treat it as policy or as a command.
 
 **Permitted uses** ([REQ-OUT-18](01-requirements.md#req-out-18)): a unit that may be retrieved but not used for grounding in this request is delivered, if relevant, with a permitted-use label: `continuity` (what was said or done before), `hypothesis` (a lead to check), `disputed` (one side of an open contradiction), `audit` (context for a review), or `reflection` (input to learning). It can explain, suggest, or show disagreement; it cannot support a claim or an action. An action that needs grounding and finds only labeled non-grounding memory treats the grounding as unknown and fails closed. L0 and L1 views carry the same ceiling and labels as their canonical unit.
 
-**Absence means unknown** ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13)): an empty, filtered, or unavailable result is reported as unknown. It is never read as approval, as "no constraints apply", or as "no prior decision exists". An action that requires authoritative memory or policy stops when that authority cannot be retrieved. The reason for absence may be withheld if revealing it would disclose restricted information ([REQ-OUT-12](01-requirements.md#req-out-12)).
+**Query resolution and coverage** ([REQ-OUT-20](01-requirements.md#req-out-20), [REQ-OUT-21](01-requirements.md#req-out-21)): every read resolves the subjects, ambiguous candidates, unmatched terms, and time window the request names, then returns a Coverage Manifest that declares its coverage basis (accessible inventory, window, query scope, enumerated vs searched) and reports status for each source in that basis. `complete` means complete relative to that basis, not organizational completeness. Coverage and staleness travel with the answer and feed grounding and fail-closed decisions; they are not operations-only telemetry.
 
-**Exploration tools** ([REQ-OUT-07](01-requirements.md#req-out-07)): MCP or API tools let a consumer inspect a unit's source, expand to L2, list related units, and report an outcome. They are never the only path by which memory reaches the model.
+**Context Delivery Receipt** ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-OUT-08](01-requirements.md#req-out-08)): every proactive injection, exploratory read, and transcript review produces an immutable receipt of exactly what was delivered, under which authority, from which source state, with which unit versions, and for how long the result remains usable. An encrypted copy of the exact delivered payload is retained for a governed period so the delivery can be reconstructed; the digest verifies that copy. When a receipt preceded a Proposal, the Proposal MUST link to it as `informed_by_receipt`; the link proves exposure only.
+
+**Absence means unknown** ([REQ-OUT-11](01-requirements.md#req-out-11), [REQ-OUT-13](01-requirements.md#req-out-13), [REQ-OUT-21](01-requirements.md#req-out-21)): an empty, filtered, or unavailable result is reported as unknown. It is never read as approval, as "no constraints apply", or as "no prior decision exists". When disclosure policy allows, the unknown keeps a reason code (`no_match`, `ambiguous_identity`, `source_not_connected`, `source_stale`, `source_unavailable`, `withheld_by_policy`, `retrieval_failed`, or `cannot_prove`). An action that requires authoritative memory or policy stops when that authority cannot be retrieved. The reason for absence may be withheld if revealing it would disclose restricted information ([REQ-OUT-12](01-requirements.md#req-out-12)).
+
+**Exploration tools** ([REQ-OUT-07](01-requirements.md#req-out-07)): MCP or API tools let a consumer inspect a unit's source when permitted, expand to L2, list related units, and report an outcome. They are never the only path by which memory reaches the model.
 
 **Transcript pitfall review** ([REQ-OUT-17](01-requirements.md#req-out-17)): given a full agent transcript, live at a checkpoint or completed, the Brain returns what applies to that work:
 
@@ -142,7 +147,7 @@ The budget is spent on L0 and L1 by default. L2 is pulled on request or when the
 - contradictions between claims or actions in the transcript and admitted memory
 - policy conflicts, shown as constraints with their human owner, never paraphrased as advice
 
-Same filters, budget, provenance, advisory framing, and logging as any delivery. The review never writes to memory.
+Same filters, budget, provenance, advisory framing, coverage, receipt, and logging as any delivery. The review never writes to memory.
 
 **Export** ([REQ-IN-16](01-requirements.md#req-in-16)): memory can be exported in portable structured formats. Only what the requester may see is exported, each item carries provenance, scope, version, and classification, and exports stay inside organization-controlled destinations.
 
@@ -172,7 +177,7 @@ Key behaviors:
 
 ### 3.6 Evaluation: the feedback loop
 
-The evaluation loop is what makes the Brain a memory rather than a warehouse. For every run it records the complete set of units supplied (ids and versions), the query form, the filters, the reasons for inclusion and omission, the consumer's model, harness, task class, and scope, and the outcome signals: helped, misled, ignored, corrected ([REQ-EV-05](01-requirements.md#req-ev-05), [REQ-EV-06](01-requirements.md#req-ev-06), [REQ-EV-10](01-requirements.md#req-ev-10)). Signals are captured implicitly (later corrections, retries, reverts, failed checks) and explicitly (consumer feedback in the tool) ([REQ-EV-11](01-requirements.md#req-ev-11)).
+The evaluation loop is what makes the Brain a memory rather than a warehouse. For every run it records the Context Delivery Receipt (or the complete set of units supplied with ids and versions), the query form, the filters, the reasons for inclusion and omission, the coverage state, the consumer's model, harness, task class, and scope, and the outcome signals: helped, misled, ignored, corrected ([REQ-OUT-19](01-requirements.md#req-out-19), [REQ-EV-05](01-requirements.md#req-ev-05), [REQ-EV-06](01-requirements.md#req-ev-06), [REQ-EV-10](01-requirements.md#req-ev-10)). After-turn contributions link back to the pre-turn receipt so exposure is reconstructable without inventing causation. Signals are captured implicitly (later corrections, retries, reverts, failed checks) and explicitly (consumer feedback in the tool) ([REQ-EV-11](01-requirements.md#req-ev-11)).
 
 What the loop does:
 
@@ -188,6 +193,7 @@ What the loop does:
 - counts promotion evidence by distinct contexts, not by repeated runs, and blocks promotion on any protected-task regression; the evidence threshold is set by risk and blast radius ([REQ-EV-16](01-requirements.md#req-ev-16), [REQ-EV-17](01-requirements.md#req-ev-17), [REQ-ME-12](01-requirements.md#req-me-12))
 - computes **net value** per task class: outcome benefit minus the cost of the write path, injected context, and retrieval ([REQ-NFR-10](01-requirements.md#req-nfr-10))
 - runs a **research-agent baseline**: for each task class, Brain-supplied context must match or beat a from-scratch research agent on quality while costing less in tokens and latency ([REQ-EV-12](01-requirements.md#req-ev-12))
+- before a new memory or retrieval capability is built, SHOULD run a **starter evaluation**: about twenty dated real-work questions, expected current and stale answers, a no-capability baseline, a held-out split rotated after inspection, and comparable agent, model, source, tool, and task conditions ([REQ-EV-20](01-requirements.md#req-ev-20)). It diagnoses progress; it does not certify production readiness
 
 Measurement definitions, protocols, and targets are in [04-kpi-and-measurements.md](04-kpi-and-measurements.md).
 
@@ -294,7 +300,7 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 1. An agent, using a delivered lesson, proposes fix A. The engineer reviews it and selects fix B instead.
 2. Fix B is deployed. The deployment succeeds, but nothing has yet checked that the problem is gone. This is an Execution, not a verified outcome.
 3. The next day the test that defines "fixed" passes. The Outcome is recorded as verified, with the evaluator, the acceptance criterion, the time, and the uncertainty.
-4. The chain is linked: Proposal A (proposed by the agent; the lesson is linked as `informed_by`, which records that it was available, not that it caused anything) ← Decision B (decided by the engineer, under their authority) ← Execution (implements Decision B) → verified Outcome. Proposal A stays in history and is never shown as the decision taken.
+4. The chain is linked: Proposal A (proposed by the agent; the lesson is linked as `informed_by`, and the pre-turn Context Delivery Receipt as `informed_by_receipt`, both of which record that context was available, not that it caused anything) ← Decision B (decided by the engineer, under their authority) ← Execution (implements Decision B) → verified Outcome. Proposal A stays in history and is never shown as the decision taken.
 5. Evaluation credits the outcome to Decision B. The lesson behind Proposal A gets no credit for a result it did not produce; the override is kept as a signal for its owner.
 6. A week later a regression shows fix B was incomplete. The correction is linked to the original Outcome, which is kept, not overwritten.
 
@@ -323,7 +329,25 @@ Scopes: personal → team → product → organization. A unit may begin at any 
 4. Changing the Skill or the lessons is not on the list. Maintenance sends the owner a proposal: weaken the Skill until it is re-validated, and review the lessons. The proposal shows the event and which units depend on the tool.
 5. The owner accepts weakening the Skill and rejects one lesson change. Both decisions go through admission and are audited. Nothing was rewritten before the owner decided.
 
-### 6.13 A crash in the middle of work (AS-18)
+### 6.13 Exact context reconstruction (AS-21)
+
+1. Before the agent reasons, the Brain injects a composed context, retains an encrypted copy of the exact payload, and freezes a Context Delivery Receipt with unit versions, coverage, and a content digest.
+2. The agent makes a Proposal that MUST link to that receipt as `informed_by_receipt`.
+3. Later, an Outcome is recorded. Reviewers can reconstruct the delivered payload while retention allows and verify it against the digest.
+4. The receipt link proves exposure only. Causal credit still needs influence or a controlled comparison.
+
+### 6.14 Partial coverage and a shared claim (AS-22, AS-24)
+
+1. A task asks about a customer. CRM is current, email is stale, meetings are unavailable. The answer uses the current CRM facts and the Coverage Manifest reports each source separately; it does not claim completeness.
+2. A consequential action that needs the missing evidence fails closed or escalates.
+3. Separately, a private source supports a work fact shared to a wider scope. The wider consumer sees provenance and sharer attribution, sees that original evidence is not inspectable, and cannot ground a high-consequence action on it without permitted independent evidence or a valid Authorized Evidence Attestation cited by id and version from the receipt.
+
+### 6.15 Ambiguous identity and speech acts (AS-23, AS-25)
+
+1. A query names a person shared by two visible records; a third match sits outside the requester's scope. The two candidates are returned as ambiguous; the restricted record is neither revealed nor counted; the result stays unknown until resolved.
+2. An agent asks whether a payment was sent, later reports that it sent it, and a provider later confirms settlement. The question is `speech_act=question` and creates no fact; the agent report stays `evidence_status=reported`; only provider confirmation raises `independently_verified`. All three remain separately traceable on both fields.
+
+### 6.16 A crash in the middle of work (AS-18)
 
 1. An agent has run a database migration and is about to send a release notice. A reviewer added a constraint a few minutes ago.
 2. The checkpoint was updated after the migration and after the constraint. The migration is in the action journal with its result; the notice is in the journal as intended.
@@ -342,7 +366,7 @@ An agentic flow is a place where a model decides something. Flows run on the exi
 | F2 | Admission and promotion review: check a candidate or promotion request against validation, sensitivity, ownership, scope, and policy gates | Candidate arrives; owner requests promotion; scheduled batch review | A recommendation with reasons; the admission service commits after rule or owner approval |
 | F3 | Contradiction triage: find a contradiction, preserve both sides, propose the `contradicts` relation, route to owners | Candidate time; periodic scan; contradiction found in a transcript review | A contradiction record and a routing notice; never resolves |
 | F4 | Deprecation detection: watch sources and scopes for deprecation and list derived units | Periodic source-status scan; adapter reports a status change | A deprecation evidence event and a proposal listing affected units |
-| F5 | Transcript pitfall review | A consumer, on a live checkpoint or completed transcript | Selection logs and outcome events only |
+| F5 | Transcript pitfall review | A consumer, on a live checkpoint or completed transcript | Context Delivery Receipt, selection logs, and outcome events only |
 | F6 | Research-agent baseline comparison: run the Brain arm and the from-scratch arm for a task class and judge both | Scheduled per task class; on demand; after a large memory change | Evaluation records; a weakening proposal when the class fails |
 | F7 | Candidate evaluation in canaries and shadow: run an unvalidated or changed unit in a safe canary, or a candidate in shadow beside the active path, and record outcomes per version | A unit is admitted as unvalidated or a new version is created; scheduled canary review | Utility records for the version; a promote, hold, or weaken recommendation |
 | F8 | Skill-candidate gating: track and run the gates for a Skill Candidate | Owner requests promotion; a gate result arrives | Gate results on the candidate; sandbox runs only; a Skill is created only by owner decision |
@@ -409,7 +433,9 @@ These hold at every surface and in every phase. An implementation that breaks on
 - Deterministic identity, permission, policy, validity, authority, scope, and per-request grounding-eligibility filters run before ranking.
 - Memory reaches the model before it reasons; exploration tools are never the only path.
 - Projections are derived, invalidated with canonical memory, and inherit its grounding restrictions; never authoritative.
-- Empty, filtered, or unavailable results mean unknown; authority-requiring actions fail closed.
+- Empty, filtered, or unavailable results mean unknown, with a reason code when disclosure allows; authority-requiring actions fail closed.
+- Every context delivery leaves an immutable, permission-filtered receipt sufficient to verify what was given; coverage travels with the answer.
+- Provenance does not imply evidence visibility; a claim without inspectable evidence cannot ground a consequential action unless policy permits a valid Authorized Evidence Attestation cited by id and version.
 - Policies are human-owned and take deterministic precedence everywhere.
 - Utility is measured per version and context; versions never inherit reputation; promotion needs evidence across distinct contexts and is blocked by a protected regression.
 - Forgetting preserves history; deletion is a separate governed operation.
